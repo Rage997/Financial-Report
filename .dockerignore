@@ -1,0 +1,43 @@
+# Allowlist: only the public build inputs below are sent to the build
+# context. Everything else (private/, uploads, generated outputs, .git,
+# developer files, tests, scripts, docs) is excluded.
+*
+
+# Build definition
+!Dockerfile
+
+# Public application sources
+!app.py
+!requirements.txt
+!config.json
+!rules.json
+!finreport
+!finreport/__init__.py
+!finreport/__main__.py
+!finreport/ai_rules.py
+!finreport/settings.py
+!finreport/imports.py
+!finreport/import_formats.py
+!finreport/charts.py
+!finreport/classifier.py
+!finreport/currency.py
+!finreport/graph.py
+!finreport/models.py
+!finreport/networth.py
+!finreport/parser.py
+!finreport/report.py
+!static
+!static/index.html
+!static/ai-rules.js
+!static/ai-rules.css
+!static/imports.js
+!static/imports.css
+!static/plotly.min.js
+!static/LICENSE.plotly.txt
+!examples
+!examples/demo-transactions.csv
+
+# Drop developer artifacts that may live inside the allowed trees
+**/__pycache__/
+**/*.py[cod]
+**/.DS_Store

@@ -1,0 +1,31 @@
+/* Local AI rules panel — static/ai-rules.css */
+.ai-panel{background:white;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:20px}
+.ai-panel .heading{align-items:flex-start}
+.ai-panel h2{font-size:16px;margin:0}
+.ai-disclosure{font-size:12px;color:var(--muted);margin:8px 0 14px;max-width:900px}
+.ai-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:12px}
+.ai-dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;flex:none}
+.ai-dot.ok{background:var(--green)}
+.ai-dot.bad{background:var(--red)}
+.ai-msg{min-height:18px;font-size:12px;color:var(--muted)}
+.ai-msg.err{color:var(--red)}
+.ai-msg.ok{color:var(--green)}
+.ai-cp-list{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:10px 0}
+.ai-cp-list label{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px}
+.ai-cp-list input[type=checkbox]{accent-color:var(--blue);width:15px;height:15px;flex:none}
+.ai-cp-name{overflow-wrap:anywhere;flex:1}
+.ai-cp-meta{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ai-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.ai-actions .ai-msg{flex:1;min-width:200px}
+.ai-count{font-size:12px;color:var(--muted);white-space:nowrap}
+.ai-review-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin:12px 0}
+.ai-review{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+.ai-review th{position:sticky;top:0;background:#eef3f9;z-index:1;text-align:left;padding:10px 12px;white-space:nowrap}
+.ai-review td{padding:10px 12px;border-top:1px solid #edf1f5;vertical-align:top}
+.ai-review td.name{min-width:180px;max-width:340px;overflow-wrap:anywhere;font-weight:600}
+.ai-review td.pattern{min-width:160px;max-width:300px}
+.ai-review td.reason{min-width:200px;max-width:360px;color:var(--muted)}
+.ai-review input,.ai-review select{width:100%;font-size:12px;padding:6px 8px}
+.ai-review input[readonly]{background:#f4f6fa;color:var(--muted)}
+.ai-review .approve{width:16px;height:16px;accent-color:var(--green);vertical-align:middle}
+.ai-note{border-left:3px solid var(--blue);padding:8px 14px;color:var(--muted);font-size:12px;margin:12px 0 0}

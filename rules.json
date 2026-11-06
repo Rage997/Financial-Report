@@ -1,0 +1,99 @@
+{
+  "rules": [
+    {
+      "category": "expense",
+      "label": "SynthiMart (refund)",
+      "patterns": ["synthimart refund"]
+    },
+    {
+      "category": "expense",
+      "label": "SynthiElectro (refund)",
+      "patterns": ["synthielectro refund"]
+    },
+    {
+      "category": "income",
+      "label": "Fictional Employer (salary)",
+      "patterns": ["fictional employer"]
+    },
+    {
+      "category": "income",
+      "label": "Freelance (SynthiClient)",
+      "patterns": ["synthiclient"]
+    },
+    {
+      "category": "income",
+      "label": "Freelance (SynthiStudio)",
+      "patterns": ["synthistudio"]
+    },
+    {
+      "category": "income",
+      "label": "Interest",
+      "patterns": ["int. creditori"]
+    },
+    {
+      "category": "transfer",
+      "label": "Self transfer",
+      "patterns": ["synthibank savings"]
+    },
+    {
+      "category": "income",
+      "label": "SynthiBroker (dividends)",
+      "patterns": ["synthibroker dividend"]
+    },
+    {
+      "category": "investment",
+      "label": "Pension contributions",
+      "patterns": ["synthipension"]
+    },
+    {
+      "category": "investment",
+      "label": "SynthiBroker",
+      "patterns": ["synthibroker"]
+    },
+    {
+      "category": "expense",
+      "label": "Rent",
+      "patterns": ["synthihomes"]
+    },
+    {
+      "category": "expense",
+      "label": "Internet",
+      "patterns": ["synthinet"]
+    },
+    {
+      "category": "expense",
+      "label": "Phone",
+      "patterns": ["synthiphone"]
+    },
+    {
+      "category": "expense",
+      "label": "Gym",
+      "patterns": ["synthigym"]
+    },
+    {
+      "category": "expense",
+      "label": "Insurance",
+      "patterns": ["synthiassure"]
+    },
+    {
+      "category": "expense",
+      "label": "Groceries",
+      "patterns": ["synthimart"]
+    },
+    {
+      "category": "expense",
+      "label": "Fuel",
+      "patterns": ["synthifuel"]
+    },
+    {
+      "category": "expense",
+      "label": "Books",
+      "patterns": ["synthibooks"]
+    },
+    {
+      "category": "expense",
+      "label": "Electronics",
+      "patterns": ["synthielectro"]
+    }
+  ]
+}

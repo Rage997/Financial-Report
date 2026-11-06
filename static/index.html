@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FinancialReport · Analysis</title><link rel="stylesheet" href="/static/ai-rules.css"><link rel="stylesheet" href="/static/imports.css">
+<style>
+:root{--bg:#f3f6fa;--ink:#172b42;--muted:#596a80;--line:#dce4ed;--blue:#235ac9;--green:#126e5b;--red:#b63f4e}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif}header{background:#122b47;color:white;padding:20px 4%;display:flex;gap:24px;align-items:center;justify-content:space-between}h1{font-size:22px;margin:0;letter-spacing:-.6px}header p{margin:2px 0;color:#adc2d9;font-size:12px}.actions{display:flex;gap:8px;align-items:center}select,input,button{font:inherit;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:white;color:var(--ink)}button{cursor:pointer}button:hover{border-color:var(--blue);color:var(--blue)}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8cb8ff;outline-offset:2px}#file{max-width:340px}main{max-width:1600px;margin:auto;padding:24px 4% 60px}.filters{background:white;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:end;gap:12px;flex-wrap:wrap}.filters label{display:flex;flex-direction:column;gap:5px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}.filters input,.filters select{text-transform:none;letter-spacing:0;font-size:13px}.search{flex:1;min-width:180px}#search{width:100%}.status{min-height:28px;margin:12px 0;color:var(--muted)}#error{color:var(--red)}.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}.kpi,.card{background:white;border:1px solid var(--line);border-radius:12px}.kpi{padding:18px}.kpi small{color:var(--muted)}.kpi strong{display:block;font-size:24px;letter-spacing:-.7px;margin:5px 0}.kpi span{font-size:11px;color:var(--muted)}.pos{color:var(--green)}.neg{color:var(--red)}.card{padding:20px;margin-bottom:20px;min-width:0}.heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.heading h2{font-size:16px;margin:0}p.hint{font-size:12px;color:var(--muted);margin:6px 0 14px}.chart{height:340px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.grid .card{margin-bottom:20px}.table-wrap{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:8px}table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}th{position:sticky;top:0;background:#eef3f9;z-index:1;text-align:left;padding:12px;white-space:nowrap}td{padding:11px 12px;border-top:1px solid #edf1f5}tbody tr:hover{background:#f4f8ff}th button{border:0;background:none;padding:0;font-weight:600;font-size:12px}td.name{min-width:220px;max-width:480px;overflow-wrap:anywhere}.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.badge{background:#edf2f9;padding:3px 8px;border-radius:20px;white-space:nowrap}.footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;color:var(--muted);font-size:12px}.link{border:0;background:none;color:var(--blue);text-align:left;padding:0}.notice{border-left:3px solid var(--blue);padding:8px 14px;color:var(--muted);font-size:12px;margin-bottom:20px}.notice p{margin:4px 0}#empty{padding:18px;text-align:center;color:var(--muted)}@media(max-width:1000px){.kpis{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}header{align-items:start;flex-direction:column}.actions{flex-wrap:wrap}}@media(max-width:600px){main{padding:16px}.kpis{grid-template-columns:repeat(2,1fr)}.kpi strong{font-size:20px}.filters label{flex:1;min-width:120px}#file{max-width:260px}.card{padding:12px}.heading{flex-wrap:wrap}}
+</style><script src="/static/plotly.min.js"></script></head><body>
+<header><div><h1>FinancialReport</h1><p>Bank activity / Financial analysis</p></div><div class="actions"><select id="file" aria-label="Dataset"></select><button id="closeFile" type="button" hidden>Close file</button><button id="importBtn">Import file</button><input id="headerImport" type="file" hidden><button id="aiToggle" aria-expanded="false" aria-controls="aiPanel">Local AI rules</button></div></header>
+<main>
+<section class="ai-panel" id="aiPanel" hidden aria-label="Review local AI rules">
+<div class="heading"><h2>Review and refine classification rules</h2><button id="aiClose" type="button">Close</button></div>
+<p class="ai-disclosure">Imports are categorized automatically. This optional review lets you override provisional categories. Suggestions here change nothing until you approve them. Rule generation receives counterparty summaries, not amount, date or account columns.</p>
+<div class="ai-status"><span id="aiDot" class="ai-dot"></span><span id="aiStatusLine" role="status"></span></div>
+<label>Find a counterparty <input id="aiCpFilter" type="search" placeholder="Filter eligible counterparties"></label>
+<div id="aiCpList" class="ai-cp-list"></div>
+<div class="ai-actions"><span id="aiCpCount" class="ai-count"></span><button id="aiSuggest" type="button" disabled>Suggest rules</button><button id="aiDiscard" type="button" hidden>Discard suggestions</button></div>
+<p id="aiMsg" class="ai-msg" role="status"></p>
+<div id="aiReviewWrap" class="ai-review-wrap" hidden><table class="ai-review"><thead><tr><th>Approve</th><th>Counterparty</th><th>Current category</th><th>Fixed pattern</th><th>Proposed category</th><th>Display label</th><th>Reason</th></tr></thead><tbody id="aiReviewBody"></tbody></table></div>
+<div class="ai-actions"><button id="aiSave" type="button" disabled>Save selected rules</button><p id="aiSaveMsg" class="ai-msg" role="status"></p></div>
+<p class="ai-note">Check every proposal. Incoming payments can be refunds, not income. Confirm ownership before classifying transfers or investments; these categories exclude the movement from income and expenses. Existing authored rules keep priority.</p>
+</section>
+<section class="card onboarding" id="onboarding" aria-label="Open a file">
+<h2>Open a file to start</h2>
+<p>Analyze your own bank activity. Continue with a saved dataset below, or import a machine-readable statement — it is processed and stored privately on the app host. Scans and photos are not supported: PDFs must contain selectable text.</p>
+<div class="welcome-actions"><button id="pickFile" type="button">Choose a statement file…</button><input id="pickFileInput" type="file" hidden><button id="continueBtn" type="button" hidden></button></div>
+<div id="savedList" class="saved-list" hidden aria-label="Saved datasets"></div>
+<div class="fmt-list" id="fmtList" aria-label="Supported formats"></div>
+<p class="ai-disclosure" id="aiDisclosure"></p>
+<div class="demo-row" id="demoRow" hidden><button id="demoBtn" type="button">Try the demo dataset</button><p>Synthetic sample data for exploring the dashboard — not your transactions.</p></div>
+</section>
+<p class="import-hint" id="importMsg" role="status"></p>
+<section class="card" id="importJobs" hidden aria-label="Import status">
+<div class="heading"><h2>Imports</h2><p class="hint" style="margin:0">Original files are preserved; normalized data is stored privately.</p></div>
+<div id="jobList"></div>
+</section>
+<div id="dashboard" hidden>
+<div class="filters" aria-label="Analysis filters"><label>Currency<select id="currency" aria-label="Currency"></select></label><label>From<input id="from" type="date"></label><label>To<input id="to" type="date"></label><label>Year<select id="year"><option value="">All years</option></select></label><label>Category<select id="category"><option value="">All categories</option><option>income</option><option>expense</option><option>transfer</option><option>investment</option><option>uncategorized</option></select></label><label>Direction<select id="direction"><option value="">In & out</option><option value="in">Incoming</option><option value="out">Outgoing</option></select></label><label class="search">Counterparty / description<input id="search" type="search" placeholder="Search transactions…"></label><button id="reset">Reset filters</button></div>
+<div class="status" role="status"><span id="status">Loading transactions…</span> <button id="clearCounterparty" hidden>Clear counterparty</button><span id="error"></span></div><section class="kpis" id="kpis"></section>
+<div class="notice" id="datasetNotice" role="note"></div>
+<section class="card"><div class="heading"><h2>Income & expenses</h2><label>Group by <select id="group"><option value="month">Month</option><option value="year">Year</option></select></label></div><p class="hint">Drag to zoom · scroll to zoom · double-click to reset · click a period to filter · click legend items to toggle</p><div id="monthly" class="chart"></div></section>
+<section class="card"><div class="heading"><h2>Cash movement</h2><button id="resetZoom">Reset chart zoom</button></div><p class="hint" id="balanceHint">Cumulative net flow starts at zero for the selection. Account balance uses the full file history, not a reset opening balance.</p><div id="balance" class="chart"></div></section>
+<div class="grid"><section class="card"><div class="heading"><h2>Counterparty flows</h2><button id="clearCounterpartyChart" hidden>Clear counterparty</button><label>Top <select id="top"><option>10</option><option>20</option><option>50</option></select></label></div><p class="hint">Incoming and outgoing shown separately. Click a bar to select or deselect that counterparty.</p><div id="counterchart" class="chart"></div></section><section class="card"><h2 style="font-size:16px;margin:0">Outgoing allocation</h2><p class="hint">Includes transfers and investments; this is not an expense breakdown. Click a category to filter.</p><div id="allocation" class="chart"></div></section></div>
+<section class="card"><div class="heading"><h2>Counterparty network</h2><label>Rank by <select id="netRank"><option value="gross">Gross volume</option><option value="in">Largest incoming</option><option value="out">Largest outgoing</option><option value="net">Abs. net</option><option value="freq">Most frequent</option></select></label><label>Top <select id="netCount"><option>5</option><option selected>10</option><option>20</option></select></label></div><p class="hint">Directed arrows show money flow — thickness = volume in the selected currency, colour = category. Click a node to drill down. <span id="netOmitted"></span></p><div id="network" class="chart" style="height:520px"></div></section>
+<section class="card"><div class="heading"><h2>Counterparties</h2><button id="clearCounterpartyTable" hidden>Clear counterparty</button></div><p class="hint">Net = incoming − outgoing. Gross volume is not profit or spending. Click a name to select or deselect it.</p><div class="table-wrap"><table><thead><tr><th>Name</th><th>Count</th><th class="num">Incoming</th><th class="num">Outgoing</th><th class="num">Net</th></tr></thead><tbody id="counterrows"></tbody></table></div></section>
+<section class="card"><div class="heading"><h2>Transactions <small id="count"></small></h2><button id="export">Export filtered CSV</button></div><p class="hint">Click column headings to sort. Scroll inside the table to keep the dashboard compact.</p><div class="table-wrap"><table><thead><tr><th><button data-sort="date">Date ↕</button></th><th><button data-sort="label">Counterparty ↕</button></th><th><button data-sort="category">Category ↕</button></th><th><button data-sort="direction">Direction ↕</button></th><th>Currency</th><th class="num"><button data-sort="minor" id="amountHead">Amount ↕</button></th><th class="num" id="balanceColHead">Account balance</th></tr></thead><tbody id="rows"></tbody></table><div id="empty" hidden>No transactions match these filters. Try a wider date range or reset filters.</div></div><div class="footer"><span id="pageInfo"></span><div><button id="prev">Previous</button> <button id="next">Next</button></div></div></section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id), esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let digits={},cur='';
+const dec=c=>digits[c]??2, factor=c=>10**dec(c), money=(n,c)=>(n/factor(c)).toLocaleString('de-CH',{minimumFractionDigits:dec(c),maximumFractionDigits:dec(c)});
+const colors={income:'#16816a',expense:'#cd5060',transfer:'#3975d5',investment:'#8960c2',uncategorized:'#94a3b8'};
+let all=[],filtered=[],partners=[],page=0,sort='date',ascending=false,exact='',version=0,balanceBasis='configured',nwPoints=[],balanceBases={},lastFile=null;
+const CHARTS=['monthly','balance','counterchart','allocation','network'];
+const config={responsive:true,scrollZoom:true,displaylogo:false,modeBarButtonsToRemove:['lasso2d','select2d']};
+const layout={font:{family:'system-ui',size:11,color:'#64748b'},margin:{l:70,r:20,t:24,b:50},paper_bgcolor:'transparent',plot_bgcolor:'transparent',hovermode:'x unified',legend:{orientation:'h',y:1.15},yaxis:{gridcolor:'#edf1f5'},xaxis:{gridcolor:'#edf1f5'},autosize:true};
+async function api(url,options){const r=await fetch(url,options);if(!r.ok){let d=await r.json().catch(()=>({}));throw Error(d.detail||`Request failed (${r.status})`)}return r.json()}
+function fail(e){$('error').textContent=' '+e.message;$('status').textContent='Unable to load data.'}
+function renderNotice(){
+  const el=$('datasetNotice');el.replaceChildren();
+  const base=balanceBasis==='cash_flow'
+    ?'Imported statement: balances are cumulative cash flow from these transactions, starting at zero — not your actual bank balance or net worth. Categories follow your manual and type rules first; the local AI model fills in only the counterparties those rules do not cover, and those automatic categories are provisional — transactions without a reliable match remain uncategorized.'
+    :'Bank transactions only. Transfers and investments are not spending. Refunds reduce expenses. Account balances include all earlier transactions in this file; filtered activity is not total net worth.';
+  const p=document.createElement('p');p.textContent=base;el.append(p);
+  const meta=window.imports?window.imports.datasetMeta($('file').value):null;
+  for(const w of (meta&&meta.warnings)||[]){const li=document.createElement('p');li.className='notice-warn';li.textContent='Import notice: '+w;el.append(li)}
+  const codes=[...new Set(all.map(t=>t.currency))].sort();
+  if(codes.length>1){const li=document.createElement('p');li.className='notice-warn';li.textContent='This dataset contains '+codes.join(' and ')+'. Each currency is analyzed independently — amounts are never converted or combined across currencies. Use the currency filter to switch.';el.append(li)}
+  $('balanceColHead').textContent=balanceBasis==='cash_flow'?'Cumulative cash flow':'Account balance';
+  $('balanceHint').textContent=balanceBasis==='cash_flow'
+    ?'Cumulative cash flow starts at zero for the selection. The dotted line excludes transfers and investments (uncategorized flows stay included) over the file history — not an actual bank balance.'
+    :'Cumulative net flow starts at zero for the selection. Account balance uses the full file history, not a reset opening balance.';
+}
+async function load(){const token=++version;const file=$('file').value;$('error').textContent='';$('status').textContent='Loading transactions…';try{const [d,nw]=await Promise.all([api('/api/transactions?file='+encodeURIComponent(file)),api('/api/networth?file='+encodeURIComponent(file))]);if(token!==version)return;balanceBases=d.balance_basis_by_currency||{};digits=d.currency_digits||{};const currencies=d.currencies||[];nwPoints=(nw.points||[]).map(p=>({...p,balance:Number(p.balance),networth:Number(p.networth)}));all=d.transactions.map(t=>({...t,minor:Math.round(Number(t.amount)*factor(t.currency)),balanceMinor:Math.round(Number(t.balance)*factor(t.currency))}));$('year').replaceChildren(new Option('All years',''),...[...new Set(all.map(t=>t.date.slice(0,4)))].sort().map(y=>new Option(y,y)));const prev=$('currency').value;cur=currencies.includes(prev)&&file===lastFile?prev:(currencies.includes('CHF')?'CHF':currencies[0]||'');$('currency').replaceChildren(...currencies.map(c=>new Option(c,c)));$('currency').value=cur;balanceBasis=balanceBases[cur]||'cash_flow';lastFile=file;renderCurrencyLabels();renderNotice();reset()}catch(e){if(token===version){all=[];filtered=[];nwPoints=[];cur='';digits={};balanceBases={};balanceBasis='configured';$('currency').replaceChildren();$('year').replaceChildren(new Option('All years',''));renderCurrencyLabels();apply();fail(e)}throw e}}
+function reset(){for(const id of ['from','to','year','category','direction','search'])$(id).value='';exact='';apply()}
+function renderCurrencyLabels(){$('amountHead').textContent='Amount'+(cur?' ('+cur+')':'')+' ↕'}
+function clearCounterparty(){exact='';$('search').value='';apply()}
+function drill(name){if(exact===name){clearCounterparty();return}exact=name;$('search').value=name;apply()}
+const counterpartyClearButtons=['clearCounterparty','clearCounterpartyChart','clearCounterpartyTable'].map($);
+counterpartyClearButtons.forEach(button=>button.onclick=clearCounterparty);
+function apply(){page=0;filtered=all.filter(t=>t.currency===cur&&(!$('from').value||t.date>=$('from').value)&&(!$('to').value||t.date<=$('to').value)&&(!$('year').value||t.date.startsWith($('year').value))&&(!$('category').value||t.category===$('category').value)&&(!$('direction').value||t.direction===$('direction').value)&&(exact?t.label===exact:(t.label+' '+t.counterparty+' '+t.payment_type).toLowerCase().includes($('search').value.toLowerCase())));$('status').textContent=`${filtered.length} of ${all.filter(t=>t.currency===cur).length}${cur?' '+cur:''} transactions selected${exact?' · '+exact:''}`;let incoming=0,outgoing=0,income=0,expense=0;const months=new Map(),cp=new Map(),cats={};for(const t of filtered){const s=t.direction==='in'?t.minor:-t.minor;incoming+=Math.max(s,0);outgoing+=Math.max(-s,0);if(t.category==='income')income+=s;if(t.category==='expense')expense-=s;const period=t.date.slice(0,$('group').value==='year'?4:7);if(!months.has(period))months.set(period,{income:0,expense:0});if(t.category==='income')months.get(period).income+=s;if(t.category==='expense')months.get(period).expense-=s;if(!cp.has(t.label))cp.set(t.label,{name:t.label,incoming:0,outgoing:0,count:0});const p=cp.get(t.label);p.count++;p[t.direction==='in'?'incoming':'outgoing']+=t.minor;if(t.direction==='out')cats[t.category]=(cats[t.category]||0)+t.minor;}
+$('kpis').innerHTML=[['Money in',incoming,'All incoming flows'],['Money out',outgoing,'All outgoing flows'],['Net flow',incoming-outgoing,'Incoming − outgoing'],['Income',income,'Net of income reversals'],['Expenses',expense,'Net of expense refunds']].map(([label,v,sub])=>`<div class="kpi"><small>${label}${cur?' · '+cur:''}</small><strong class="${v<0?'neg':''}">${money(v,cur)}</strong><span>${sub}</span></div>`).join('');
+const keys=[...months.keys()].sort();Plotly.react('monthly',[{type:'bar',name:'Income',x:keys,y:keys.map(k=>months.get(k).income/factor(cur)),marker:{color:colors.income}},{type:'bar',name:'Expenses',x:keys,y:keys.map(k=>months.get(k).expense/factor(cur)),marker:{color:colors.expense}}],{...layout,barmode:'group',xaxis:{type:'category'},yaxis:{gridcolor:'#edf1f5',title:cur}},config);
+let cumulative=0;const daily=new Map();for(const t of filtered){cumulative+=t.direction==='in'?t.minor:-t.minor;daily.set(t.date,cumulative/factor(cur))}const start=$('from').value,end=$('to').value,year=$('year').value;
+let flowName,balName,balX,balY;
+if(balanceBasis==='cash_flow'){
+  // Full-history curve from /api/networth: excludes transfers/investments, keeps uncategorized flows.
+  const nw=new Map();for(const p of nwPoints)if(p.currency===cur&&(!start||p.date>=start)&&(!end||p.date<=end)&&(!year||p.date.startsWith(year)))nw.set(p.date,p.networth);
+  flowName='Cumulative cash flow';balName='Cash flow excluding transfers/investments';balX=[...nw.keys()];balY=[...nw.values()];
+}else{
+  const balances=new Map();for(const t of all)if(t.currency===cur&&(!start||t.date>=start)&&(!end||t.date<=end)&&(!year||t.date.startsWith(year)))balances.set(t.date,t.balanceMinor/factor(cur));
+  flowName='Selected cumulative net flow';balName='Account balance (all activity)';balX=[...balances.keys()];balY=[...balances.values()];
+}
+Plotly.react('balance',[{type:'scatter',mode:'lines',name:flowName,x:[...daily.keys()],y:[...daily.values()],line:{color:colors.transfer}},{type:'scatter',mode:'lines',name:balName,x:balX,y:balY,line:{color:'#e49c39',dash:'dot'}}],{...layout,xaxis:{type:'date',rangeslider:{visible:true,thickness:.12}},yaxis:{gridcolor:'#edf1f5',title:cur},margin:{...layout.margin,b:30}},config);
+partners=[...cp.values()].sort((a,b)=>(b.incoming+b.outgoing)-(a.incoming+a.outgoing));const top=partners.slice(0,Number($('top').value)).reverse();$('counterchart').style.height=Math.max(340,top.length*28)+'px';Plotly.react('counterchart',[{type:'bar',orientation:'h',name:'Incoming',y:top.map(p=>p.name),x:top.map(p=>p.incoming/factor(cur)),marker:{color:colors.income}},{type:'bar',orientation:'h',name:'Outgoing',y:top.map(p=>p.name),x:top.map(p=>-p.outgoing/factor(cur)),marker:{color:colors.expense}}],{...layout,barmode:'relative',hovermode:'closest',margin:{l:150,r:20,t:30,b:40},yaxis:{automargin:true,ticktext:top.map(p=>p.name.length>22?p.name.slice(0,22)+'…':p.name),tickvals:top.map(p=>p.name)},xaxis:{title:cur+' · out ← → in'}},config);
+Plotly.react('allocation',[{type:'pie',hole:.65,labels:Object.keys(cats),values:Object.values(cats).map(v=>v/factor(cur)),marker:{colors:Object.keys(cats).map(k=>colors[k])},textinfo:'percent',hovertemplate:`%{label}<br>${cur} %{value:,.${dec(cur)}f}<br>%{percent}<extra></extra>`}],{...layout,margin:{l:20,r:20,t:30,b:30},showlegend:true,annotations:Object.keys(cats).length?[]:[{text:'No outgoing transactions',showarrow:false}]},config);
+counterpartyClearButtons.forEach(button=>button.hidden=!exact);
+$('counterrows').innerHTML=partners.map((p,i)=>`<tr><td class="name"><button class="link" data-partner="${i}">${esc(p.name)}</button></td><td>${p.count}</td><td class="num pos">${money(p.incoming,cur)}</td><td class="num neg">${money(p.outgoing,cur)}</td><td class="num">${money(p.incoming-p.outgoing,cur)}</td></tr>`).join('');renderRows();renderNetwork();}
+function renderNetwork(){
+  const metric=$('netRank').value,N=Number($('netCount').value);
+  const m=new Map();
+  for(const t of filtered){
+    if(!m.has(t.label))m.set(t.label,{name:t.label,incoming:0,outgoing:0,count:0,cats:{},first:t.date,last:t.date});
+    const p=m.get(t.label);p.count++;p[t.direction==='in'?'incoming':'outgoing']+=t.minor;p.cats[t.category]=(p.cats[t.category]||0)+1;if(t.date<p.first)p.first=t.date;if(t.date>p.last)p.last=t.date;
+  }
+  const arr=[...m.values()];
+  const score=p=>metric==='in'?p.incoming:metric==='out'?p.outgoing:metric==='net'?Math.abs(p.incoming-p.outgoing):metric==='freq'?p.count:p.incoming+p.outgoing;
+  arr.sort((a,b)=>score(b)-score(a));
+  const shown=arr.slice(0,N),omitted=arr.slice(N);
+  const omittedCents=omitted.reduce((s,p)=>s+p.incoming+p.outgoing,0);
+  $('netOmitted').textContent=omitted.length?`· ${omitted.length} more (${cur} ${money(omittedCents,cur)}) not shown`:'';
+  const cat=p=>{let best='uncategorized',n=0;for(const[k,v]of Object.entries(p.cats))if(v>n){n=v;best=k}return best};
+  const base={...layout,hovermode:'closest',showlegend:false,margin:{l:10,r:10,t:10,b:10},xaxis:{visible:false,range:[-135,135]},yaxis:{visible:false,range:[-135,135],scaleanchor:'x',scaleratio:1},dragmode:'pan'};
+  if(!shown.length){Plotly.react('network',[],{...base,annotations:[{text:'No counterparties in this selection',showarrow:false,font:{size:13,color:'#64748b'}}]},config).then(bindChartHooks).catch(fail);return;}
+  const R=100,cx=0,cy=0,n=shown.length,maxVol=Math.max(...shown.map(p=>Math.max(p.incoming,p.outgoing)),1);
+  const pos=shown.map((p,i)=>{const a=Math.PI/2-2*Math.PI*i/n;return{p,x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)}});
+  const nodes={type:'scatter',mode:'markers+text',x:pos.map(o=>o.x),y:pos.map(o=>o.y),text:pos.map(o=>o.p.name||'Uncategorized'),textposition:'top center',textfont:{size:11,color:'#172b42'},marker:{size:pos.map(o=>Math.min(9+Math.sqrt((o.p.incoming+o.p.outgoing)/factor(cur))/7,22)),color:pos.map(o=>colors[cat(o.p)]),line:{width:1,color:'#fff'}},customdata:pos.map(o=>o.p.name),hovertext:pos.map(o=>`${o.p.name||'Uncategorized'}<br>In: ${cur} ${money(o.p.incoming,cur)}<br>Out: ${cur} ${money(o.p.outgoing,cur)}<br>Net: ${cur} ${money(o.p.incoming-o.p.outgoing,cur)}<br>Count: ${o.p.count}<br>${o.p.first} → ${o.p.last}`),hoverinfo:'text'};
+  const hub={type:'scatter',mode:'markers+text',x:[cx],y:[cy],text:[balanceBasis==='cash_flow'?'Account':'BPS'],textposition:balanceBasis==='cash_flow'?'middle right':'middle center',textfont:{size:13,color:balanceBasis==='cash_flow'?'#37474f':'#fff',weight:'bold'},marker:{size:30,color:'#37474f'},hoverinfo:'skip',showlegend:false};
+  const anns=[];
+  pos.forEach(o=>{
+    const p=o.p,dx=o.x-cx,dy=o.y-cy,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len,px=-uy,py=ux;
+    const off=(p.incoming>0&&p.outgoing>0)?4:0;
+    // Both endpoints use axis coordinates; Plotly otherwise treats ax/ay as pixel offsets.
+    if(p.incoming>0){const w=1+2*Math.sqrt(p.incoming/maxVol),e={x:cx+ux*16+px*off,y:cy+uy*16+py*off},s={x:o.x-ux*15+px*off,y:o.y-uy*15+py*off};anns.push({xref:'x',yref:'y',axref:'x',ayref:'y',x:e.x,y:e.y,ax:s.x,ay:s.y,showarrow:true,arrowhead:3,arrowwidth:w,arrowcolor:colors[cat(p)],text:''})}
+    if(p.outgoing>0){const w=1+2*Math.sqrt(p.outgoing/maxVol),e={x:cx-ux*15-px*off,y:cy-uy*15-py*off},s={x:o.x+ux*16-px*off,y:o.y+uy*16-py*off};anns.push({xref:'x',yref:'y',axref:'x',ayref:'y',x:e.x,y:e.y,ax:s.x,ay:s.y,showarrow:true,arrowhead:3,arrowwidth:w,arrowcolor:colors[cat(p)],text:''})}
+  });
+  Plotly.react('network',[nodes,hub],{...base,annotations:anns},config).then(bindChartHooks).catch(fail);
+}
+function renderRows(){const ordered=[...filtered].sort((a,b)=>{const v=typeof a[sort]==='number'?a[sort]-b[sort]:String(a[sort]).localeCompare(String(b[sort]));return ascending?v:-v});const rows=ordered.slice(page*50,(page+1)*50);$('rows').innerHTML=rows.map(t=>`<tr><td>${t.date}</td><td class="name"><strong>${esc(t.label)}</strong>${t.label!==t.counterparty?'<br><span style="color:var(--muted)">'+esc(t.counterparty)+'</span>':''}</td><td><span class="badge">${esc(t.category)}</span></td><td>${t.direction==='in'?'Incoming':'Outgoing'}</td><td>${t.currency}</td><td class="num ${t.direction==='in'?'pos':'neg'}">${t.direction==='in'?'+':'−'}${money(t.minor,cur)}</td><td class="num">${money(t.balanceMinor,cur)}</td></tr>`).join('');$('empty').hidden=filtered.length>0;$('count').textContent=`(${filtered.length})`;$('pageInfo').textContent=filtered.length?`${page*50+1}–${Math.min((page+1)*50,filtered.length)} of ${filtered.length}`:'0 transactions';$('prev').disabled=page===0;$('next').disabled=(page+1)*50>=filtered.length;}
+for(const id of ['from','to','year','category','direction','group','top'])$(id).onchange=apply;$('currency').onchange=()=>{cur=$('currency').value;balanceBasis=balanceBases[cur]||'cash_flow';renderCurrencyLabels();renderNotice();apply()};$('search').oninput=()=>{exact='';apply()};$('reset').onclick=reset;$('prev').onclick=()=>{page--;renderRows()};$('next').onclick=()=>{page++;renderRows()};document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{ascending=sort===b.dataset.sort?!ascending:true;sort=b.dataset.sort;page=0;renderRows();document.querySelectorAll('[data-sort]').forEach(x=>x.setAttribute('aria-label',x.dataset.sort+' sort'+(x===b?(ascending?' ascending':' descending'):'')))});$('counterrows').onclick=e=>{const b=e.target.closest('[data-partner]');if(b)drill(partners[Number(b.dataset.partner)].name)};
+$('netRank').onchange=apply;$('netCount').onchange=apply;
+$('resetZoom').onclick=()=>{for(const id of ['monthly','balance','counterchart'])Plotly.relayout(id,{'xaxis.autorange':true,'yaxis.autorange':true})};
+$('export').onclick=()=>{const quote=v=>'"'+String(v).replace(/"/g,'""')+'"';const safe=s=>/^[=+@\-\t\r]/.test(s)?"'"+s:s;const rows=[['Date','Counterparty','Category','Direction','Currency','Amount'],...filtered.map(t=>[t.date,safe(t.label),t.category,t.direction,t.currency,t.amount])];const url=URL.createObjectURL(new Blob(['\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='filtered-transactions.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+// Bind click handlers only after Plotly has created the chart event emitters.
+let chartHooksBound=false,sessionWrites=Promise.resolve();
+function bindChartHooks(){
+  if(chartHooksBound||['monthly','counterchart','allocation','network'].some(id=>typeof $(id).on!=='function'))return;
+  $('monthly').on('plotly_click',e=>{const p=String(e.points[0].x);if(p.length===4){$('year').value=p;$('from').value='';$('to').value=''}else{$('year').value='';$('from').value=p+'-01';const [y,m]=p.split('-').map(Number);$('to').value=p+'-'+new Date(y,m,0).getDate()}apply()});
+  $('counterchart').on('plotly_click',e=>drill(e.points[0].y));
+  $('allocation').on('plotly_click',e=>{$('category').value=e.points[0].label;apply()});
+  $('network').on('plotly_click',e=>{const c=e.points[0].customdata;if(c)drill(c)});
+  chartHooksBound=true;
+}
+const datasetChangedCbs=[];
+window.dashboard={
+  fileSelect:$('file'),
+  currentFile(){return $('file').value},
+  async setDataset(file,persist){
+    if(![...$('file').options].some(option=>option.value===file))throw Error('The saved dataset is unavailable.');
+    $('file').value=file;
+    await load();
+    if($('file').value!==file)return;
+    if(persist){
+      const saved=sessionWrites.catch(()=>{}).then(()=>api('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file})}));
+      sessionWrites=saved;
+      try{await saved}catch(e){const message='Selection was not saved: '+e.message+' — it will not be restored on the next visit.';$('error').textContent=message;throw Error(message)}
+    }
+    for(const cb of datasetChangedCbs)cb(file);
+  },
+  load,
+  clear(){++version;$('file').value='';$('currency').replaceChildren();$('year').replaceChildren(new Option('All years',''));cur='';digits={};balanceBases={};balanceBasis='configured';lastFile=null;all=[];filtered=[];partners=[];nwPoints=[];exact='';renderCurrencyLabels();apply();$('dashboard').hidden=true;for(const cb of datasetChangedCbs)cb()},
+  show(){$('dashboard').hidden=false;for(const id of CHARTS){const d=$(id);if(d.data)Plotly.Plots.resize(d)}},
+  hide(){$('dashboard').hidden=true},
+  onDatasetChanged(cb){datasetChangedCbs.push(cb)}
+};
+</script><script src="/static/imports.js"></script><script src="/static/ai-rules.js"></script></body></html>
