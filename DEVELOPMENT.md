@@ -15,7 +15,7 @@ listed rather than disappearing from the roadmap.
 | Completed | 10 | Anomaly flags | Implemented |
 | Completed | 8 | Period comparisons (MoM / YoY) | Implemented |
 | Completed | 11 | Multi-file (multi-bank) support | Implemented |
-| 1 | 13 | Dark mode, print/PDF and calendar view | Planned |
+| 1 | 13 | Dark mode, print/PDF and calendar view | Dark mode implemented; print/calendar planned |
 
 Remaining delivery: **13**. A feature becomes
 implemented only after its user-facing path has been exercised.
@@ -148,9 +148,15 @@ currency isolation and precision, missing months, and no-activity states.
 
 ### 13 — Cosmetic & quality
 
-Dark mode (persisted, charts re-rendered with theme-appropriate colors), a
-dependency-free print / save-as-PDF path via a print stylesheet, and a
-calendar month view where clicking a day filters transactions to that date.
+**Dark mode implemented:** the header toggle persists an explicit local choice,
+otherwise follows the OS preference live. Denied browser storage falls back to
+a session-only choice. Cards, forms, import/AI panels and every chart use the
+matching palette, including network labels and hover text. Theme changes preserve
+filters and transaction pagination. Browser-verified for persistence, OS changes,
+storage denial, chart colors and mobile layout.
+
+**Still planned:** dependency-free print / save-as-PDF via a print stylesheet,
+and a calendar month view where clicking a day filters transactions to that date.
 
 ## Ground rules for future work
 

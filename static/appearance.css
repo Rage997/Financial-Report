@@ -1,0 +1,44 @@
+/* Match native controls and existing surfaces to the saved theme. */
+:root{color-scheme:light;--surface:#fff}
+
+html[data-theme='dark']{
+  --bg:#0e1622;--ink:#e8eef6;--muted:#9aa9bd;--line:#2b3a50;
+  --green:#43c9a4;--red:#f28b99;
+  --surface:#16202f;
+  color-scheme:dark
+}
+html[data-theme='dark'] body{background:var(--bg);color:var(--ink)}
+html[data-theme='dark'] header{background:#0a1420}
+html[data-theme='dark'] header p{color:#8fa3bd}
+html[data-theme='dark'] select,
+html[data-theme='dark'] input,
+html[data-theme='dark'] button{background:#1d2939;border-color:var(--line);color:var(--ink)}
+html[data-theme='dark'] button:hover{border-color:#79aaff;color:#79aaff}
+html[data-theme='dark'] .filters,
+html[data-theme='dark'] .kpi,
+html[data-theme='dark'] .card,
+html[data-theme='dark'] .ai-panel{background:#16202f}
+html[data-theme='dark'] th,
+html[data-theme='dark'] .ai-review th{background:#1d2939}
+html[data-theme='dark'] td,
+html[data-theme='dark'] .ai-review td{border-top-color:#243247}
+html[data-theme='dark'] tbody tr:hover{background:#223047}
+html[data-theme='dark'] .badge,
+html[data-theme='dark'] .fmt,
+html[data-theme='dark'] .job-status{background:#223047}
+html[data-theme='dark'] .job-status.ready{background:#12352c}
+html[data-theme='dark'] .job-status.failed{background:#3a1f26}
+html[data-theme='dark'] .job-status.queued,
+html[data-theme='dark'] .job-status.normalizing,
+html[data-theme='dark'] .job-status.categorizing,
+html[data-theme='dark'] .job-status.waiting_ai{background:#1a2a4a}
+html[data-theme='dark'] .job-progress{background:#243247}
+html[data-theme='dark'] .notice-warn{background:#2a2417}
+html[data-theme='dark'] .ai-review input[readonly]{background:#1d2939;color:var(--muted)}
+html[data-theme='dark'] .saved-list button,
+html[data-theme='dark'] #continueBtn{background:#1d2939}
+html[data-theme='dark'] .saved-list button:hover{border-color:#79aaff;color:#79aaff}
+html[data-theme='dark'] .link{color:#79aaff}
+html[data-theme='dark'] .job-actions a{color:#79aaff}
+html[data-theme='dark'] .job-actions a:hover{border-color:#79aaff}
+

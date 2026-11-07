@@ -83,6 +83,12 @@ unavailable, and zero baselines have no percentage. Choose **Compare to last yea
 on the monthly chart to overlay prior-year activity without filling missing data
 with invented zeros. Comparisons cover available records, not verified full statements.
 
+## Display
+
+Use **Dark mode / Light mode** in the header. Your explicit choice is saved in
+this browser; without one, the dashboard follows the system theme. Charts update
+with the page, without clearing filters or changing the transaction page.
+
 ## Local AI
 
 Choose `FINREPORT_AI_TIER` in `.env`:

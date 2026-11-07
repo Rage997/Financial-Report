@@ -19,7 +19,7 @@ These are existing capabilities, not outstanding roadmap tasks.
 `DEVELOPMENT.md` owns the ordered feature tracker and acceptance scope.
 Counterparty history (#12), recurring payments (#7), anomaly flags (#10),
 period comparisons (#8) and multi-file analysis (#11) are implemented.
-The next delivery is **#13: dark mode, print/PDF and calendar view**.
+Dark mode (#13) is implemented; **print/PDF and calendar view** remain next.
 
 ## Implemented capabilities
 
@@ -159,6 +159,10 @@ The next delivery is **#13: dark mode, print/PDF and calendar view**.
   never borrow another bank's baseline. Added sources are session-only; opening
   a dataset resets the set. Deletion, failed loads and stale responses cannot leave
   excluded data in totals. Browser import/deletion/race and CLI/API checks passed.
+- **Dark mode (#13)** — persistent header toggle with live OS defaults before an
+  explicit choice, graceful session-only behavior when storage is denied, and
+  coordinated chart/surface palettes. Filters and pagination survive theme changes.
+  Verified in the browser across reloads, OS changes, denied storage and mobile.
 
 The networth curve is a flow-based estimate from the **primary** bank export.
 It does **not** include market gains/losses, other banks or other assets. Aggregate
@@ -169,7 +173,7 @@ or summed together, and overlapping statements are not deduplicated.
 
 | Order | Feature | Status |
 |---|---|---|
-| 1 | #13 Dark mode, print/PDF and calendar | Planned |
+| 1 | #13 Print/PDF and calendar (dark mode implemented) | Planned |
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic
 import/categorization (#14) and optional reviewed rule creation (#9) are already

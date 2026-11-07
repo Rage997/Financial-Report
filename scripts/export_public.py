@@ -25,6 +25,8 @@ PUBLIC_FILES = (
     "static/imports.js",
     "static/imports.css",
     "static/comparisons.js",
+    "static/appearance.js",
+    "static/appearance.css",
     "tests/test_public_boundaries.py",
     "tests/test_period_comparisons.py",
     "tests/test_ai_rules.py",
