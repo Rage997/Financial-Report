@@ -83,12 +83,38 @@ class RuleApprovalTests(unittest.TestCase):
                 self.apply([self.approval, bad])
             self.assertFalse(self.approved.exists())
 
-    def test_full_name_pattern_cannot_catch_another_unruled_counterparty(self):
+    def test_approval_matches_only_the_exact_counterparty(self):
+        with self.dataset.open("a") as stream:
+            stream.write("2024-01-05;-20;Example Shop Insurance\n"
+                         "2024-01-06;-5;example shop\n")
+        self.assertEqual(self.apply([self.approval]), 1)
+        rules = ai_rules.effective_rules(self.base, self.approved)
+        txns = load_transactions(self.dataset)
+        classify_all(txns, rules)
+        # The approval matches the full name (any case), not names containing it.
+        self.assertEqual([t.category for t in txns], [Category.INVESTMENT, Category.EXPENSE,
+                                                      Category.EXPENSE, Category.UNCATEGORIZED,
+                                                      Category.UNCATEGORIZED, Category.EXPENSE])
+        self.assertEqual([row["counterparty"] for row in ai_rules.candidates(txns, rules)],
+                         ["Example Shop Insurance", "Unknown Sender"])
+
+    def test_saved_approved_rules_load_as_exact_matches(self):
+        # Previously saved approved files keep their shape; they load without
+        # rewrite and match the full counterparty name only.
+        self.approved.parent.mkdir(parents=True, exist_ok=True)
+        self.approved.write_text(json.dumps({"rules": [
+            {"category": "expense", "label": "Shopping", "patterns": ["example shop"]}]}),
+                                 encoding="utf-8")
+        original = self.approved.read_bytes()
         with self.dataset.open("a") as stream:
             stream.write("2024-01-05;-20;Example Shop Insurance\n")
-        with self.assertRaisesRegex(ValueError, "another unruled counterparty"):
-            self.apply([self.approval])
-        self.assertFalse(self.approved.exists())
+        rules = ai_rules.effective_rules(self.base, self.approved)
+        txns = load_transactions(self.dataset)
+        classify_all(txns, rules)
+        self.assertEqual([t.category for t in txns], [Category.INVESTMENT, Category.EXPENSE,
+                                                      Category.EXPENSE, Category.UNCATEGORIZED,
+                                                      Category.UNCATEGORIZED])
+        self.assertEqual(self.approved.read_bytes(), original)
 
     def test_type_fallback_remains_a_candidate_but_explicit_rules_do_not(self):
         card = Transaction("1", date(2024, 1, 1), Decimal("20"), Direction.OUT,
@@ -163,10 +189,9 @@ class ModelBoundaryTests(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(ai_rules.ModelError):
                 ai_rules.local_url(url)
 
-    def test_browser_requests_cannot_cross_origins_or_use_rebound_hosts(self):
+    def test_browser_mutations_require_same_origin_and_json(self):
         for host, origin, content_type in (
             ("127.0.0.1:8010", "https://external.example", "application/json"),
-            ("external.example", "http://external.example", "application/json"),
             ("127.0.0.1:8010", "http://127.0.0.1:8010", "text/plain"),
         ):
             request = Request({"type": "http", "method": "POST", "path": "/api/ai/apply",

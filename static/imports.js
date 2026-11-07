@@ -133,19 +133,23 @@ async function openDataset(file){
 async function tick(){
   pollTimer=null;pollInFlight=true;
   try{
+    const snapshot=refreshVersion;
     const settled=await Promise.allSettled(activeJobs().map(j=>api('/api/imports/'+j.id)));
     const failures=settled.filter(r=>r.status==='rejected');
     if(failures.length){setMsg('Import status unavailable: '+failures[0].reason.message+' — reconnecting…','err');pollError=true}
     else if(pollError){pollError=false;setMsg('')}
     let completed=false,open=null;
-    for(const result of settled){
-      if(result.status!=='fulfilled'||removed.has(result.value.id))continue;
-      const j=result.value,previous=jobs.get(j.id);jobs.set(j.id,j);
-      if(j.id===messageJob&&!failures.length)jobMessage(j);
-      if(previous&&ACTIVE.includes(previous.status)&&!ACTIVE.includes(j.status)){
-        completed=true;
-        if(j.status==='ready'&&intents.get(j.id)===selectionVersion)open={job:j,intent:intents.get(j.id)};
-        intents.delete(j.id);
+    // Drop stale poll results if a job mutation or refresh ran while in flight.
+    if(refreshVersion===snapshot){
+      for(const result of settled){
+        if(result.status!=='fulfilled'||removed.has(result.value.id))continue;
+        const j=result.value,previous=jobs.get(j.id);jobs.set(j.id,j);
+        if(j.id===messageJob&&!failures.length)jobMessage(j);
+        if(previous&&ACTIVE.includes(previous.status)&&!ACTIVE.includes(j.status)){
+          completed=true;
+          if(j.status==='ready'&&intents.get(j.id)===selectionVersion)open={job:j,intent:intents.get(j.id)};
+          intents.delete(j.id);
+        }
       }
     }
     if(completed)await refreshWorkspace();
@@ -160,7 +164,7 @@ async function upload(file){
   el.pickFile.disabled=el.importBtn.disabled=true;setMsg('Uploading '+file.name+'…');
   const fd=new FormData();fd.append('file',file);
   try{
-    const j=await api('/api/imports',{method:'POST',body:fd});jobs.set(j.id,j);intents.set(j.id,intent);
+    const j=await api('/api/imports',{method:'POST',body:fd});jobs.set(j.id,j);++refreshVersion;intents.set(j.id,intent);
     if(intent===selectionVersion){messageJob=j.id;jobMessage(j)}
     renderJobs();
     if(j.status==='ready')await openImport(j,intent);
@@ -185,22 +189,21 @@ el.jobList.addEventListener('click',async event=>{
   const id=button.closest('.job').dataset.id,j=jobs.get(id),operation=button.dataset.action;
   if(!j||busy.has(id))return;
   if(operation==='delete'&&!window.confirm('Delete '+j.name+'? This permanently removes its original file, normalized data and saved import. Reviewed rules are kept.'))return;
-  const selected=el.fileSelect.value===j.file;
   busy.add(id);renderJobs();
   try{
     if(operation==='open'){
       const intent=++selectionVersion;messageJob=null;setMsg('');await openImport(j,intent);
     }else if(operation==='delete'){
       await api('/api/imports/'+id,{method:'DELETE',headers:{'Content-Type':'application/json'},body:'{}'});
-      removed.add(id);jobs.delete(id);intents.delete(id);
+      removed.add(id);jobs.delete(id);++refreshVersion;intents.delete(id);
       if(messageJob===id)messageJob=null;
-      if(selected){++selectionVersion;window.dashboard.clear();showOnboarding()}
+      if(el.fileSelect.value===j.file){++selectionVersion;window.dashboard.clear();showOnboarding()}
       await refreshWorkspace();setMsg('Deleted saved files for '+j.name+'.');
     }else{
       const body=operation==='dismiss'?{dismissed:!j.dismissed}:{};
       const intent=operation==='retry'?++selectionVersion:selectionVersion;
       const result=await api('/api/imports/'+id+'/'+operation,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      jobs.set(id,result);
+      jobs.set(id,result);++refreshVersion;
       if(operation==='retry'){intents.set(id,intent);messageJob=id;jobMessage(result)}
       else if(operation==='cancel'){messageJob=id;jobMessage(result)}
       else{if(messageJob===id)messageJob=null;setMsg(result.dismissed?'Import dismissed; saved files are unchanged.':'Import restored to history.')}

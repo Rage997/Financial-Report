@@ -141,6 +141,10 @@ class ImportStore:
                            "ai_phase=NULL,ai_chars=0,error=NULL WHERE status IN ('normalizing','categorizing')")
                 db.execute("UPDATE imports SET status='cancelled',stage='Import cancelled',finished_at=?,"
                            "ai_phase=NULL WHERE status='cancelling'", (_now(),))
+                # A durable queue can outlive a model or backend switch; unfinished
+                # jobs must run with the model the workspace is configured for now.
+                db.execute("UPDATE imports SET model=? WHERE status IN ('queued','waiting_ai')",
+                           (self.ai_model,))
             for allow_ai in (False, True):
                 thread = threading.Thread(target=self._run, args=(allow_ai,),
                                           name="financial-ai" if allow_ai else "financial-imports", daemon=True)

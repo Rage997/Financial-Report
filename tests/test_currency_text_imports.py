@@ -54,8 +54,8 @@ class TextCurrencyImportTests(unittest.TestCase):
                           ('KWD', Decimal('0.001'), Direction.OUT)])
 
     def test_ai_statement_currency_changes_do_not_leak_between_records(self):
-        first = '2025-03-01 Bakery -12.50 987.50'
-        second = '2025-03-02 Bakery -0.001 9.999'
+        first = '2025-03-01 Bakery -12.50 balance 987.50'
+        second = '2025-03-02 Bakery -0.001 balance 9.999'
         rows = [
             self.extracted(2, first, counterparty='Bakery', amount='-12.50', currency=''),
             self.extracted(4, second, counterparty='Bakery', amount='-0.001',
@@ -143,7 +143,7 @@ class TextCurrencyImportTests(unittest.TestCase):
             with self.subTest(raw=raw), patch('finreport.import_formats._model_ready'), \
                     patch('finreport.import_formats._ai_chat', return_value={'rows': [row]}), \
                     self.assertRaises(NormalizationError):
-                self.normalize('.txt', f'Currency: {currency}\n{evidence} 987.50', model=True)
+                self.normalize('.txt', f'Currency: {currency}\n{evidence} balance 987.50', model=True)
 
     def test_ai_cannot_reverse_positive_sign_after_currency_decorations(self):
         evidence = '2025-03-01 Bakery USD $+12.50'
@@ -152,12 +152,12 @@ class TextCurrencyImportTests(unittest.TestCase):
         with patch('finreport.import_formats._model_ready'), \
                 patch('finreport.import_formats._ai_chat', return_value={'rows': [row]}), \
                 self.assertRaises(NormalizationError):
-            self.normalize('.txt', f'Currency: USD\n{evidence} 987.50', model=True)
+            self.normalize('.txt', f'Currency: USD\n{evidence} balance 987.50', model=True)
 
     # --- AI extraction (deterministic mocked model content) ---
 
     def test_ai_extraction_grounds_currency_in_source(self):
-        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR 100.00'
+        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR balance 100.00'
         row = self.extracted(2, '2025-03-01 Paid SynthiMart -19.50 EUR')
         with patch('finreport.import_formats._model_ready'), \
                 patch('finreport.import_formats._ai_chat', return_value={'rows': [row]}):
@@ -166,7 +166,7 @@ class TextCurrencyImportTests(unittest.TestCase):
                          [('EUR', Decimal('19.50'), Direction.OUT)])
 
     def test_ai_cannot_substitute_another_currency_for_a_stated_one(self):
-        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR 100.00'
+        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR balance 100.00'
         for currency in ('USD', 'CHF'):
             row = self.extracted(2, '2025-03-01 Paid SynthiMart -19.50 EUR', currency=currency)
             with self.subTest(currency=currency), \
@@ -176,7 +176,7 @@ class TextCurrencyImportTests(unittest.TestCase):
                 self.normalize('.txt', text, model=True)
 
     def test_ai_must_report_a_stated_currency(self):
-        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR 100.00'
+        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR balance 100.00'
         row = self.extracted(2, '2025-03-01 Paid SynthiMart -19.50 EUR', currency='')
         with patch('finreport.import_formats._model_ready'), \
                 patch('finreport.import_formats._ai_chat', return_value={'rows': [row]}), \
@@ -184,7 +184,7 @@ class TextCurrencyImportTests(unittest.TestCase):
             self.normalize('.txt', text, model=True)
 
     def test_ai_evidence_must_include_the_currency_marker(self):
-        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR 100.00'
+        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 EUR balance 100.00'
         row = self.extracted(2, '2025-03-01 Paid SynthiMart -19.50 EUR',
                              evidence='2025-03-01 Paid SynthiMart -19.50')
         with patch('finreport.import_formats._model_ready'), \
@@ -193,7 +193,7 @@ class TextCurrencyImportTests(unittest.TestCase):
             self.normalize('.txt', text, model=True)
 
     def test_ai_cannot_relabel_money_from_a_merchant_name(self):
-        text = '2025-03-01 USD Corp -19.50 100.00'
+        text = '2025-03-01 USD Corp -19.50 balance 100.00'
         row = self.extracted(1, '2025-03-01 USD Corp -19.50',
                              counterparty='USD Corp', currency='USD')
         with patch('finreport.import_formats._model_ready'), \
@@ -209,7 +209,7 @@ class TextCurrencyImportTests(unittest.TestCase):
                          [('CHF', Decimal('19.50'))])
 
     def test_ai_uses_statement_default_for_unmarked_amounts(self):
-        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 100.00'
+        text = 'Currency: EUR\n2025-03-01 Paid SynthiMart -19.50 balance 100.00'
         row = self.extracted(2, '2025-03-01 Paid SynthiMart -19.50', currency='')
         with patch('finreport.import_formats._model_ready'), \
                 patch('finreport.import_formats._ai_chat', return_value={'rows': [row]}):
@@ -218,7 +218,7 @@ class TextCurrencyImportTests(unittest.TestCase):
                          [('EUR', Decimal('19.50'))])
 
     def test_ai_cannot_invent_incoming_on_a_decorated_outgoing_amount(self):
-        text = '2025-03-01 Bakery -€12.50 987.50'
+        text = '2025-03-01 Bakery -€12.50 balance 987.50'
         for amount in ('-€12.50', '12.50', '+12.50'):
             row = self.extracted(1, '2025-03-01 Bakery -€12.50', counterparty='Bakery',
                                  amount=amount, direction='in')
@@ -236,7 +236,7 @@ class TextCurrencyImportTests(unittest.TestCase):
                          [('EUR', Decimal('12.50'), Direction.OUT)])
 
     def test_ai_keeps_three_digit_minor_units(self):
-        text = 'Currency: KWD\n2025-03-01 Bank -1,234.567 KWD 99.00'
+        text = 'Currency: KWD\n2025-03-01 Bank -1,234.567 KWD balance 99.00'
         row = self.extracted(2, '2025-03-01 Bank -1,234.567 KWD', counterparty='Bank',
                              amount='-1,234.567', currency='KWD')
         with patch('finreport.import_formats._model_ready'), \
@@ -246,7 +246,7 @@ class TextCurrencyImportTests(unittest.TestCase):
                          [('KWD', Decimal('1234.567'))])
 
     def test_ai_ambiguous_symbol_fails_without_a_compatible_default(self):
-        text = '2025-03-01 Bakery $12.50 987.50'
+        text = '2025-03-01 Bakery $12.50 balance 987.50'
         row = self.extracted(1, '2025-03-01 Bakery $12.50', counterparty='Bakery',
                              amount='12.50', direction='in', currency='USD')
         with patch('finreport.import_formats._model_ready'), \
@@ -255,7 +255,7 @@ class TextCurrencyImportTests(unittest.TestCase):
             self.normalize('.txt', text, model=True)
 
     def test_ai_ambiguous_symbol_resolved_by_statement_default(self):
-        text = 'Currency: USD\n2025-03-01 Bakery $12.50 987.50'
+        text = 'Currency: USD\n2025-03-01 Bakery $12.50 balance 987.50'
         row = self.extracted(2, '2025-03-01 Bakery $12.50', counterparty='Bakery',
                              amount='12.50', direction='in', currency='USD')
         with patch('finreport.import_formats._model_ready'), \

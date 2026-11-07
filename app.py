@@ -44,6 +44,7 @@ AI_CONFIGURATION = ai_config()
 AI_URL = AI_CONFIGURATION.url
 AI_MODEL = AI_CONFIGURATION.model
 AI_GENERATION_LOCK = Lock()
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "app", "testserver"}
 
 _IMPORT_STORE = None
 _STORE_KEY = None
@@ -72,6 +73,53 @@ async def lifespan(application):
 
 app = FastAPI(title="FinancialReport", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+def _host_of(host_header: str) -> str | None:
+    """Parse a Host authority, including bracketed IPv6 and optional ports."""
+    if not host_header or any(char.isspace() for char in host_header):
+        return None
+    try:
+        authority = urlsplit("//" + host_header)
+        port = authority.port  # Access validates numeric ports and their range.
+        if (authority.path or authority.query or authority.fragment
+                or authority.username is not None or authority.password is not None
+                or host_header.endswith(":")):
+            return None
+        return authority.hostname
+    except ValueError:
+        return None
+
+
+class LocalHostBoundary:
+    """Reject requests whose ``Host`` is not a trusted local application address.
+
+    Runs before routes, static files and docs so that no endpoint is reachable
+    under a foreign host. Only the host is checked, so valid localhost/IPv4/IPv6
+    origins keep working regardless of port.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        hosts = [value for key, value in scope.get("headers", ()) if key == b"host"]
+        host = _host_of(hosts[0].decode("latin-1")) if len(hosts) == 1 else None
+        if host not in LOCAL_HOSTS:
+            response = JSONResponse(
+                {"detail": "requests must use a local application address"},
+                status_code=403,
+            )
+            await response(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(LocalHostBoundary)
+
 
 def _approved_rules_path() -> Path:
     return ROOT / "private" / "ai" / PROFILE / "rules.json"
@@ -282,8 +330,6 @@ class ApplyRequest(BaseModel):
 
 
 def _local_request(request: Request) -> None:
-    if request.url.hostname not in {"localhost", "127.0.0.1", "::1", "app", "testserver"}:
-        raise HTTPException(403, "AI requests must use a local application address")
     origin = request.headers.get("origin")
     if request.headers.get("sec-fetch-site") == "cross-site":
         raise HTTPException(403, "cross-site AI requests are not allowed")

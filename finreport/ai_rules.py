@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .classifier import Rule, classify, load_rules
+from .classifier import Rule, classify, load_rules, rule_matches
 from .models import Category, Transaction
 from .parser import load_transactions
 
@@ -341,14 +341,19 @@ def status(url: str, model: str) -> dict:
 
 
 def effective_rules(base: Path, approved: Path) -> list[Rule]:
-    return load_rules(base) + (load_rules(approved) if approved.exists() else [])
+    # Authored rules keep substring matching and first-match priority; reviewed
+    # approvals match the full counterparty name exactly (case-insensitive).
+    rules = load_rules(base)
+    if approved.exists():
+        rules += load_rules(approved, exact=True)
+    return rules
 
 
 def candidates(txns: list[Transaction], rules: list[Rule]) -> list[dict]:
     groups: dict[str, dict] = {}
     for txn in txns:
         key = txn.counterparty.lower()
-        if not key.strip() or any(any(pattern in key for pattern in rule.patterns) for rule in rules):
+        if not key.strip() or any(rule_matches(rule, txn.counterparty) for rule in rules):
             continue
         if key not in groups:
             category, _ = classify(txn.counterparty, rules, txn.payment_type)
@@ -476,12 +481,6 @@ def apply_rules(base: Path, approved: Path, dataset: Path, expected_revision: st
             if not isinstance(label, str) or not label.strip() or len(label) > 80:
                 raise ValueError("Labels must contain 1–80 characters.")
             pattern = candidate["counterparty"].lower()
-            # A full-name substring can still be broad ('Acme' vs 'Acme Insurance').
-            # Refuse such a rule instead of silently classifying unrelated counterparties.
-            if any(pattern in txn.counterparty.lower() and pattern != txn.counterparty.lower()
-                   and not any(any(p in txn.counterparty.lower() for p in rule.patterns) for rule in rules)
-                   for txn in txns):
-                raise ValueError(f"'{candidate['counterparty']}' also matches another unruled counterparty. Add a more specific manual rule instead.")
             additions.append({"category": row["category"], "label": label.strip(), "patterns": [pattern]})
         document = json.loads(approved.read_text()) if approved.exists() else {"rules": []}
         document["rules"].extend(additions)

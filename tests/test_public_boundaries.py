@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from threading import Lock
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 from fastapi import HTTPException, UploadFile
 
@@ -37,6 +38,101 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
         for name, value in {"ROOT": self.root, "DATA": self.data,
                             "UPLOADS": self.uploads, "RULES": rules}.items():
             patch.object(app, name, value).start()
+
+    async def request(self, target, *, host="localhost:8010", method="GET",
+                      headers=(), body=b""):
+        url = urlsplit(target)
+        received = False
+        messages = []
+
+        async def receive():
+            nonlocal received
+            if received:
+                return {"type": "http.disconnect"}
+            received = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        async def send(message):
+            messages.append(message)
+
+        request_headers = [] if host is None else [(b"host", host.encode())]
+        await app.app({
+            "type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"},
+            "http_version": "1.1", "method": method, "scheme": "http",
+            "path": url.path, "raw_path": url.path.encode(), "root_path": "",
+            "query_string": url.query.encode(), "server": ("127.0.0.1", 8010),
+            "client": ("127.0.0.1", 50000), "headers": request_headers + list(headers),
+        }, receive, send)
+        status = next(message["status"] for message in messages
+                      if message["type"] == "http.response.start")
+        content = b"".join(message.get("body", b"") for message in messages
+                           if message["type"] == "http.response.body")
+        return status, content
+
+    async def test_untrusted_host_cannot_read_any_financial_or_browser_surface(self):
+        response = await app.api_import(UploadFile(filename="statement.csv",
+                                                   file=io.BytesIO(self.sample)))
+        identifier = json.loads(response.body)["id"]
+        self.store.process(identifier)
+        paths = (
+            "/", "/static/imports.js", "/docs", "/openapi.json", "/api/files",
+            "/api/data?file=examples/demo.csv", "/api/transactions?file=examples/demo.csv",
+            "/api/networth?file=examples/demo.csv", "/api/graph?file=examples/demo.csv",
+            "/api/chart?name=monthly&file=examples/demo.csv", "/api/workspace",
+            "/api/ai/status", "/api/ai/candidates?file=examples/demo.csv",
+            f"/api/imports/{identifier}", f"/api/imports/{identifier}/source",
+            f"/api/imports/{identifier}/normalized",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                status, content = await self.request(
+                    path, host="attacker.example",
+                    headers=((b"origin", b"http://attacker.example"),
+                             (b"sec-fetch-site", b"same-origin")))
+                self.assertEqual(status, 403)
+                self.assertNotIn(b"Example Employer", content)
+        status, content = await self.request("/api/transactions?file=examples/demo.csv")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(content)["transactions"][0]["counterparty"], "Example Employer")
+
+    async def test_host_authority_validation_keeps_local_ports_and_ipv6(self):
+        for host in ("localhost", "LOCALHOST:8010", "127.0.0.1:8010", "[::1]",
+                     "[::1]:8010", "app:8010", "testserver"):
+            with self.subTest(host=host):
+                status, content = await self.request("/api/files", host=host)
+                self.assertEqual(status, 200)
+                self.assertEqual(json.loads(content)["files"], ["examples/demo.csv"])
+        for host in (None, "", "attacker.example", "localhost.attacker.example",
+                     "localhost:8010@attacker.example", "127.0.0.1.nip.io",
+                     "[::1].attacker.example", "localhost:8010:9000", "localhost:bad",
+                     "localhost:65536", "localhost/path", "localhost#attacker",
+                     "localhost?attacker"):
+            with self.subTest(host=host):
+                status, _ = await self.request("/api/files", host=host)
+                self.assertEqual(status, 403)
+        for first, second in (("localhost", "attacker.example"), ("attacker.example", "localhost")):
+            with self.subTest(first=first):
+                status, _ = await self.request("/api/files", host=first,
+                                               headers=((b"host", second.encode()),))
+                self.assertEqual(status, 403)
+
+    async def test_trusted_host_does_not_bypass_mutation_origin_guards(self):
+        body = b'{"file":"examples/demo.csv"}'
+        for headers, expected in (
+            (((b"origin", b"http://attacker.example"), (b"content-type", b"application/json")), 403),
+            (((b"origin", b"http://localhost:8010"), (b"sec-fetch-site", b"cross-site"),
+              (b"content-type", b"application/json")), 403),
+            (((b"origin", b"http://localhost:8010"), (b"content-type", b"text/plain")), 415),
+        ):
+            with self.subTest(headers=headers):
+                status, _ = await self.request("/api/session", method="POST", headers=headers, body=body)
+                self.assertEqual(status, expected)
+                self.assertIsNone(app.api_files()["default"])
+        status, _ = await self.request(
+            "/api/session", method="POST", body=body,
+            headers=((b"origin", b"http://localhost:8010"), (b"content-type", b"application/json")))
+        self.assertEqual(status, 200)
+        self.assertEqual(app.api_files()["default"], "examples/demo.csv")
 
     async def test_demo_cannot_open_private_or_traversal_paths(self):
         _, transactions = app._load("examples/demo.csv")

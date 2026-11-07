@@ -104,6 +104,135 @@ class ImportLifecycleTests(unittest.TestCase):
             server.server_close()
             thread.join()
 
+    @contextmanager
+    def model_endpoint(self, model):
+        """Serve a local model endpoint that only accepts the loaded model."""
+        loaded = {"model": model}
+        pause, entered, release = threading.Event(), threading.Event(), threading.Event()
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def _json(self, payload, status=200):
+                body = json.dumps(payload).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_GET(self):
+                if self.path == "/health":
+                    self._json({"status": "ok"})
+                elif self.path == "/v1/models":
+                    self._json({"object": "list", "data": [
+                        {"id": loaded["model"], "object": "model", "aliases": []}]})
+                else:
+                    self._json({"error": "unknown endpoint"}, 404)
+
+            def do_POST(self):
+                payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                if payload.get("model") != loaded["model"]:
+                    self._json({"error": "model not loaded"}, 404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.end_headers()
+
+                def sse(delta, finish=None):
+                    chunk = {"id": "chatcmpl-test", "object": "chat.completion.chunk",
+                             "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
+                    self.wfile.write(("data: " + json.dumps(chunk)).encode() + b"\n")
+
+                try:
+                    sse({"role": "assistant", "content": "{"})
+                    self.wfile.flush()
+                    if pause.is_set():
+                        pause.clear()
+                        entered.set()
+                        release.wait(10)
+                    sse({"content": '"suggestions":[{"id":0,"category":"expense",'
+                                    '"label":"Merchant","reason":"Retail purchase"}]}'})
+                    sse({}, "stop")
+                    self.wfile.write(b"data: [DONE]\n")
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            yield {"url": f"http://127.0.0.1:{server.server_port}", "loaded": loaded,
+                   "pause": pause, "entered": entered, "release": release}
+        finally:
+            release.set()
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def make_model_store(self, url, model):
+        store = ImportStore(self.root, "demo", self.rules, self.root / "approved.json",
+                            url, model, threading.Lock(), autostart=False)
+        self.addCleanup(store.close)
+        return store
+
+    def submit_to(self, store, counterparty):
+        record, created = store.submit("statement.csv", (
+            f"date;amount;currency;counterparty\n2025-01-02;-5.00;CHF;{counterparty}\n"
+        ).encode())
+        self.assertTrue(created)
+        return record
+
+    def test_pending_jobs_resume_with_reconfigured_model_after_restart(self):
+        old_model = "qwen2.5:1.5b"
+        new_model = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+        with self.model_endpoint(old_model) as endpoint:
+            store = self.make_model_store(endpoint["url"], old_model)
+            store.start()
+            finished = self.submit_to(store, "First Merchant")
+            ready = self.wait_status(finished["id"], {"ready", "failed"})
+            self.assertEqual(ready["status"], "ready", ready["error"])
+            finished_folder = store.directory / finished["id"]
+            finished_csv = (finished_folder / "transactions.csv").read_bytes()
+            finished_rules = (finished_folder / "rules.json").read_bytes()
+            # Keep the model worker busy so the next job stays durably waiting.
+            endpoint["pause"].set()
+            paused = self.submit_to(store, "Second Merchant")
+            self.assertTrue(endpoint["entered"].wait(5), "Model request did not start")
+            pending = self.submit_to(store, "Third Merchant")
+            self.wait_status(pending["id"], {"waiting_ai"})
+            pending_folder = store.directory / pending["id"]
+            pending_csv = (pending_folder / "transactions.csv").read_bytes()
+            store.close()
+            self.assertEqual(self.store.get(paused["id"])["status"], "queued")
+            self.assertEqual(self.store.get(pending["id"])["status"], "waiting_ai")
+            # A crash while a cancellation was in flight must stay cancelled.
+            cancelling = self.submit_to(store, "Fourth Merchant")
+            with self.store._connect() as db:
+                db.execute("UPDATE imports SET status='cancelling' WHERE id=?", (cancelling["id"],))
+        # The backend now serves a different model identity for the same workspace.
+        with self.model_endpoint(new_model) as endpoint:
+            reopened = self.make_model_store(endpoint["url"], new_model)
+            reopened.start()
+            resumed = self.wait_status(pending["id"], {"ready", "failed"})
+            self.assertEqual(resumed["status"], "ready", resumed["error"])
+            self.assertEqual(resumed["model"], new_model)
+            self.assertEqual((pending_folder / "transactions.csv").read_bytes(), pending_csv)
+            metadata = json.loads((pending_folder / "normalization.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["configured_model"], old_model)
+            resumed_paused = self.wait_status(paused["id"], {"ready", "failed"})
+            self.assertEqual(resumed_paused["status"], "ready", resumed_paused["error"])
+            self.assertEqual(resumed_paused["model"], new_model)
+            finished_job = self.store.get(finished["id"])
+            self.assertEqual((finished_job["status"], finished_job["model"]), ("ready", old_model))
+            self.assertEqual((self.root / finished_job["file"]).read_bytes(), finished_csv)
+            self.assertEqual((finished_folder / "rules.json").read_bytes(), finished_rules)
+            cancelled_job = self.store.get(cancelling["id"])
+            self.assertEqual((cancelled_job["status"], cancelled_job["model"]), ("cancelled", old_model))
+            with self.store._connect() as db:
+                models = {row[0] for row in db.execute("SELECT DISTINCT model FROM automatic_rules")}
+            self.assertEqual(models, {old_model, new_model})
+
     def test_slow_ai_does_not_block_known_imports_and_cancellation_cannot_publish_late_results(self):
         with self.paused_model() as (entered, release):
             slow = self.submit("New Merchant")

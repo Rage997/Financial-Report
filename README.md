@@ -26,7 +26,7 @@ docker compose up -d --build --remove-orphans
 
 Open **http://localhost:8010** and upload a statement. The first start downloads llama.cpp and the selected GGUF model, so it may take a while. To try sample data, set the profile to `demo` and choose **Try the demo dataset**.
 
-Imports are saved locally, so you can reopen them without uploading again. Review AI suggestions under **Local AI rules** before approving them.
+Imports stay saved locally. Under **Local AI rules**, review and approve categories; approvals match full counterparty names, ignoring case.
 
 ## Supported files and limits
 

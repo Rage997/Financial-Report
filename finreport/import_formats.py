@@ -108,6 +108,8 @@ MAX_JSON_RECORDS = 50_000
 MAX_CSV_ROWS = 200_000
 MAX_SHEET_ROWS = 50_000
 MAX_SHEET_COLS = 200
+MAX_JSON_COLUMNS = 200
+MAX_JSON_CELLS = 1_000_000
 MAX_AMOUNT = Decimal("1000000000000")
 
 AI_WINDOW_CHARS = 3000
@@ -414,12 +416,42 @@ def _has_amountish(text: str) -> bool:
     return any(any(c in m.group() for c in "+-−.,'’(") for m in _money_tokens(text))
 
 
+
+
+# Words that label an amount as a period or running balance, not a transaction.
+_BALANCE_ROLE_TAIL_RE = re.compile(
+    r"(?<![A-Za-zÀ-ÿ])"
+    r"(?:(?:running|opening|closing|initial|ending|current)\s+balance"
+    r"|(?:balance|saldo|solde|kontostand|soldebilanz"
+    r"|(?:saldo|solde)\s+(?:iniziale|finale|corrente|attuale)))"
+    r"\s*[:=]?\s*(?:" + _CURRENCY_MARKER + r"\s*[:=]?\s*)?$", re.I)
+
+
+def _amount_labeled_balance(text: str, start: int) -> bool:
+    """True when the word immediately before an amount labels it as a balance."""
+    prefix = text[:start].rstrip()
+    return bool(prefix) and _BALANCE_ROLE_TAIL_RE.search(prefix) is not None
+
+
+# A dated monetary record is not a header merely because its description
+# starts with an account identifier, page number, or balance-related words.
+_BALANCE_SUMMARY_RE = re.compile(
+    r"^(?:opening balance|closing balance|initial balance|ending balance|"
+    r"saldo iniziale|saldo finale)\b", re.I)
+_IDENTIFIER_SUMMARY_RE = re.compile(
+    r"^(?:statement period|statement date|page \d+\b|account number|iban\b)", re.I)
+
+
 def _line_is_summary_or_header(line: str) -> bool:
-    value = _DATE_TOKEN_RE.sub("", line, count=1).strip()
-    return bool(re.match(
-        r"^(?:opening balance|closing balance|initial balance|ending balance|"
-        r"saldo iniziale|saldo finale|statement period|statement date|"
-        r"page \d+|account number|iban\b)", value, re.I))
+    value = _DATE_TOKEN_RE.sub("", line).strip()
+    dated_amount = _DATE_TOKEN_RE.search(line) is not None and any(_money_tokens(line))
+    balance = _BALANCE_SUMMARY_RE.match(value)
+    if balance:
+        remainder = value[balance.end():].strip(" \t:=")
+        return not dated_amount or _NUMERIC_TOKEN_RE.fullmatch(remainder) is not None
+    if re.fullmatch(r"page \d+(?:\s*(?:of|/)\s*\d+)?", value, re.I):
+        return True
+    return _IDENTIFIER_SUMMARY_RE.match(value) is not None and not dated_amount
 
 
 def _grounded_amount_in(evidence: str, amount: Decimal, currency: str | None) -> bool:
@@ -567,6 +599,27 @@ def _extract_with_ai(ai_url: str, ai_model: str, text: str, *, context: str,
             amount = parse_source_amount(row["amount"], context=f"{context} line {line}", currency=code)
             if not _grounded_amount_in(body, amount, code) or not _grounded_amount_in(evidence, amount, code):
                 raise NormalizationError(f"{context} line {line}: amount or sign differs from the source.")
+            # Signs and currency decorations do not establish a number's role:
+            # running balances may carry both. Require one distinct non-balance
+            # amount, and never accept a value explicitly labelled as a balance.
+            candidates: set[Decimal] = set()
+            for token in _money_tokens(body):
+                try:
+                    value = parse_source_amount(
+                        token.group(), context=f"{context} line {line}", currency=code)
+                except NormalizationError:
+                    continue
+                if _amount_labeled_balance(body, token.start()):
+                    if value == amount:
+                        raise NormalizationError(
+                            f"{context} line {line}: the selected amount is a balance, "
+                            "not a transaction.")
+                else:
+                    candidates.add(value)
+            if candidates != {amount}:
+                raise NormalizationError(
+                    f"{context} line {line}: the transaction amount cannot be "
+                    "identified unambiguously; use a structured statement export.")
             raw_date = row["date"].strip()
             parse_source_date(raw_date, context=f"{context} line {line}")
             if raw_date not in [m.group() for m in _DATE_TOKEN_RE.finditer(evidence)]:
@@ -1295,6 +1348,14 @@ def _json_records(data) -> tuple[list[str], list[list[str]], int] | None:
     if all(isinstance(item, (int, float, str)) for item in data):
         return None
     if all(isinstance(item, list) for item in data):
+        cells = 0
+        for row in data:
+            if len(row) > MAX_JSON_COLUMNS:
+                raise NormalizationError(f"JSON has more than {MAX_JSON_COLUMNS} columns.")
+            cells += len(row)
+            if cells > MAX_JSON_CELLS:
+                raise NormalizationError(
+                    f"JSON exceeds {MAX_JSON_CELLS:,} table cells; split the statement.")
         header = [_json_cell(c) for c in data[0]]
         if _row_looks_data(header):
             raise NormalizationError("JSON table needs a header row; the first transaction was not discarded.")
@@ -1302,10 +1363,19 @@ def _json_records(data) -> tuple[list[str], list[list[str]], int] | None:
         return header, rows, 2
     if all(isinstance(item, dict) for item in data):
         keys: list[str] = []
+        seen: set[str] = set()
         for item in data:
-            for k in item:
-                if k not in keys:
-                    keys.append(k)
+            for key in item:
+                if key not in seen:
+                    seen.add(key)
+                    keys.append(key)
+                    if len(keys) > MAX_JSON_COLUMNS:
+                        raise NormalizationError(
+                            f"JSON has more than {MAX_JSON_COLUMNS} distinct columns.")
+                    if len(data) * len(keys) > MAX_JSON_CELLS:
+                        raise NormalizationError(
+                            f"JSON exceeds {MAX_JSON_CELLS:,} expanded table cells; "
+                            "split the statement or remove unused fields.")
         rows = [[_json_cell(item.get(k, "")) for k in keys] for item in data]
         return [str(k) for k in keys], rows, 1
     return None
@@ -1459,6 +1529,10 @@ def _normalize_ofx(path: Path, *, ai_url: str, ai_model: str,
             if key in fields:
                 raise NormalizationError(f"{context}: duplicate field {key}.")
             fields[key] = value
+        if "CORRECTFITID" in fields or "CORRECTACTION" in fields:
+            raise NormalizationError(
+                f"{context}: OFX correction records are not supported; "
+                "export a finalized statement without replacement/deletion records.")
         if not fields.get("DTPOSTED") or not fields.get("TRNAMT"):
             raise NormalizationError(f"{context}: missing date or amount.")
         declared: str | None = None
@@ -1611,6 +1685,10 @@ def _pdf_line_row(line: str, *, default_currency: str | None = None) -> tuple[st
     if date_match is None or len(tokens) != 1:
         return None
     token = tokens[0]
+    if _amount_labeled_balance(value, token.start()):
+        raise NormalizationError(
+            "Text contains a balance-labelled amount, not a transaction; "
+            "use a structured statement export.")
     if token.start() <= date_match.end():
         return None
     cp = re.sub(r"[\s$¥]+$", "", value[date_match.end():token.start()].strip()).strip()
@@ -1792,6 +1870,15 @@ def _normalize_txt(path: Path, *, ai_url: str, ai_model: str,
     for index, line in enumerate(lines[:20]):
         header = re.split(r"\t+| {2,}", line.strip())
         if _deterministic_mapping(header) is not None:
+            for number, preamble in enumerate(lines[:index], start=1):
+                if _line_is_summary_or_header(preamble):
+                    continue
+                cells = re.split(r"\t+| {2,}", preamble.strip())
+                if _row_looks_data(cells) or (
+                        _DATE_TOKEN_RE.search(preamble) and any(_money_tokens(preamble))):
+                    raise NormalizationError(
+                        f"{path.name} line {number}: a possible transaction precedes "
+                        "the table header; provide one complete table.")
             default_currency = _resolve_default(
                 _stated_currencies("\n".join(lines[:index]), context=path.name),
                 context=path.name)

@@ -87,13 +87,16 @@ def main(argv: list[str] | None = None) -> int:
         txns = _load(args)
         if args.currency is not None:
             txns = _select_currency(txns, args.currency)
-        print(f"Loaded {len(txns)} transactions "
-              f"({min(t.date for t in txns)} .. {max(t.date for t in txns)})\n")
+        if args.year is not None:
+            txns = [txn for txn in txns if txn.date.year == args.year]
+        date_range = (f" ({min(t.date for t in txns)} .. {max(t.date for t in txns)})"
+                      if txns else "")
+        print(f"Loaded {len(txns)} transactions{date_range}\n")
         print("=== Monthly ===")
-        print(report.monthly_report(txns, year=args.year))
+        print(report.monthly_report(txns))
         print()
         print("=== Yearly ===")
-        print(report.yearly_report(txns, year=args.year))
+        print(report.yearly_report(txns))
         print()
         print(f"=== Counterparties (min count {args.min_count}) ===")
         print(report.counterparty_report(txns, min_count=args.min_count))

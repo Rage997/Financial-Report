@@ -142,7 +142,7 @@ function renderReview(suggestions){
     tdCount.append(cnt,badge);
     const tdPattern=document.createElement('td');tdPattern.className='pattern';
     const pat=document.createElement('input');pat.type='text';pat.value=s.pattern;pat.readOnly=true;
-    pat.setAttribute('aria-label','Fixed matching pattern for '+s.counterparty);
+    pat.setAttribute('aria-label','Case-insensitive exact name for '+s.counterparty);
     tdPattern.append(pat);
     const tdCat=document.createElement('td');
     const sel=document.createElement('select');

@@ -12,7 +12,16 @@ from .models import Category, Transaction
 class Rule:
     category: Category
     label: str
-    patterns: tuple[str, ...]  # lowercase substrings
+    patterns: tuple[str, ...]  # lowercase; substrings for authored rules, full names for reviewed rules
+    exact: bool = False  # False: authored substring match, True: reviewed full-name match
+
+
+def rule_matches(rule: Rule, counterparty: str) -> bool:
+    """Case-insensitive match: authored rules match substrings, reviewed rules the full name."""
+    cp = counterparty.lower()
+    if rule.exact:
+        return any(cp == pattern for pattern in rule.patterns)
+    return any(pattern in cp for pattern in rule.patterns)
 
 # Fallback when no rule matches, by parser-detected payment type:
 # a debit-card purchase is an expense, an ATM withdrawal moves money to cash
@@ -24,7 +33,7 @@ DEFAULT_BY_TYPE: dict[str, Category] = {
 }
 
 
-def load_rules(path: str | Path) -> list[Rule]:
+def load_rules(path: str | Path, *, exact: bool = False) -> list[Rule]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     rules: list[Rule] = []
     for i, r in enumerate(data.get("rules", [])):
@@ -35,14 +44,13 @@ def load_rules(path: str | Path) -> list[Rule]:
         patterns = tuple(p.lower() for p in r["patterns"])
         if not patterns:
             raise ValueError(f"rules.json: rule {i} ({r['label']}) has no patterns")
-        rules.append(Rule(category, r["label"], patterns))
+        rules.append(Rule(category, r["label"], patterns, exact))
     return rules
 
 
 def classify(counterparty: str, rules: list[Rule], payment_type: str = "") -> tuple[Category, str]:
-    cp = counterparty.lower()
     for rule in rules:
-        if any(pat in cp for pat in rule.patterns):
+        if rule_matches(rule, counterparty):
             return rule.category, rule.label
     if payment_type in DEFAULT_BY_TYPE:
         return DEFAULT_BY_TYPE[payment_type], ""

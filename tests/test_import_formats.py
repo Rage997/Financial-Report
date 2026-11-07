@@ -92,6 +92,32 @@ class ImportFormatTests(unittest.TestCase):
                     }), self.assertRaises(NormalizationError):
                 self.normalize('.json', json.dumps(data), model=True)
 
+    def test_json_limits_sparse_width_and_dense_cell_expansion(self):
+        sparse = [
+            {'date': '2025-02-13', 'amount': '-12.50', 'counterparty': 'Bakery',
+             f'extra_{index}': 'unused'}
+            for index in range(201)
+        ]
+        wide_table = [
+            ['date', 'amount', 'counterparty'] + [f'extra_{index}' for index in range(201)],
+            ['2025-02-13', '-12.50', 'Bakery'] + ['unused'] * 201,
+        ]
+        for data in (sparse, wide_table):
+            with self.subTest(shape=type(data[0]).__name__), self.assertRaises(NormalizationError):
+                self.normalize('.json', json.dumps(data))
+        records = [
+            {'date': '2025-02-13', 'amount': '-12.50', 'counterparty': 'Bakery'},
+            {'date': '2025-02-14', 'amount': '-12.50', 'counterparty': 'Bakery'},
+        ]
+        for data, budget in ((records, 6),
+                             ([list(records[0])] + [list(row.values()) for row in records], 9)):
+            with self.subTest(shape=type(data[0]).__name__), patch(
+                    'finreport.import_formats.MAX_JSON_CELLS', budget):
+                result = self.normalize('.json', json.dumps(data))
+                self.assertEqual(sum(t.amount for t in result.transactions), Decimal('25'))
+                with self.assertRaises(NormalizationError):
+                    self.normalize('.json', json.dumps(data + [data[-1]]))
+
     def test_currency_outside_transaction_rows_cannot_be_ignored(self):
         cases = [
             ('.csv', 'EUR statement\ndate;amount;counterparty\n2025-02-13;-12.50;Bakery\n'),
@@ -165,6 +191,29 @@ class ImportFormatTests(unittest.TestCase):
                              [('EUR', Decimal('12.50'))])
             with self.assertRaises(NormalizationError):
                 self.normalize('.ofx', body.replace('</STMTTRN>', ''))
+
+    def test_ofx_corrections_reject_the_entire_statement(self):
+        for closed in (False, True):
+            def field(key, value):
+                return f'<{key}>{value}' + (f'</{key}>' if closed else '\n')
+
+            def transaction(identifier, amount, correction=''):
+                return ('<STMTTRN>' + field('DTPOSTED', '20250213')
+                        + field('TRNAMT', amount) + field('NAME', 'Bakery')
+                        + field('FITID', identifier) + correction + '</STMTTRN>')
+
+            start = '<OFX><STMTRS>' + field('CURDEF', 'CHF') + '<BANKTRANLIST>'
+            end = '</BANKTRANLIST></STMTRS></OFX>'
+            original = transaction('original', '-10.00')
+            ordinary = start + original + transaction('second', '-12.00') + end
+            result = self.normalize('.ofx', ordinary)
+            self.assertEqual([t.amount for t in result.transactions],
+                             [Decimal('10'), Decimal('12')])
+            for action in ('REPLACE', 'DELETE'):
+                correction = field('CORRECTFITID', 'original') + field('CORRECTACTION', action)
+                source = start + original + transaction('corrected', '-12.00', correction) + end
+                with self.subTest(closed=closed, action=action), self.assertRaises(NormalizationError):
+                    self.normalize('.qfx' if closed else '.ofx', source)
 
     def test_qif_uses_month_first_dates_and_imports_split_parent_once(self):
         result = self.normalize('.qif', '!Type:Bank\nD11/02/2025\nT-12.50\nPBakery\nSFood\n$-10.00\nSTax\n$-2.50\n^\n')
@@ -242,6 +291,62 @@ class ImportFormatTests(unittest.TestCase):
     def test_text_cannot_take_running_balance_as_transaction_amount(self):
         with self.assertRaises(NormalizationError):
             self.normalize('.txt', 'CHF\n2025-02-13  Bakery  -12.50  987.50\n')
+
+    def test_ai_rejects_balances_and_ambiguous_amount_roles(self):
+        cases = [
+            ('amount -12.50 balance 987.50', '987.50', 'in'),
+            ('amount -12.50 balance: CHF 987.50', '987.50', 'in'),
+            ('balance 987.50', '987.50', 'in'),
+            ('-12.50 987.50', '987.50', 'in'),
+            ('-12.50 987.50', '-12.50', 'out'),
+            ('12.50 -987.50', '-987.50', 'out'),
+            ('CHF 12.50 987.50', '12.50', 'in'),
+            ('amount -12.50 closing balance -987.50', '-987.50', 'out'),
+        ]
+        for suffix, amount, direction in cases:
+            text = f'2025-02-13 Bakery {suffix}'
+            row = self.extracted(1, text, amount=amount, direction=direction)
+            with self.subTest(source=text), patch('finreport.import_formats._model_ready'), patch(
+                    'finreport.import_formats._ai_chat', return_value={'rows': [row]}), \
+                    self.assertRaises(NormalizationError):
+                self.normalize('.txt', text, model=True)
+
+    def test_ai_keeps_the_transaction_when_other_amounts_are_explicit_balances(self):
+        for detail, amount, direction in (
+                ('amount -12.50 running balance 987.50', '-12.50', 'out'),
+                ('credit 12.50 balance: -987.50', '12.50', 'in')):
+            text = f'2025-02-13 Bakery {detail}'
+            row = self.extracted(1, text, amount=amount, direction=direction)
+            with self.subTest(source=text), patch('finreport.import_formats._model_ready'), patch(
+                    'finreport.import_formats._ai_chat', return_value={'rows': [row]}):
+                result = self.normalize('.txt', text, model=True)
+            self.assertEqual([(t.counterparty, t.amount, t.direction) for t in result.transactions],
+                             [('Bakery', Decimal('12.50'), Direction(direction))])
+
+    def test_txt_table_cannot_discard_a_transaction_before_its_header(self):
+        table = 'Date\tAmount\tPayee\n2025-02-14\t-10.00\tGrocery\n'
+        for first in ('2025-02-13\t-25.00\tBakery', '2025-02-13 Bakery -25.00'):
+            with self.subTest(first=first), self.assertRaises(NormalizationError):
+                self.normalize('.txt', first + '\n' + table)
+        result = self.normalize('.txt', 'Opening balance 2025-02-01 100.00\n' + table)
+        self.assertEqual([(t.counterparty, t.amount) for t in result.transactions],
+                         [('Grocery', Decimal('10'))])
+
+    def test_dated_identifier_description_is_not_a_header(self):
+        result = self.normalize('.txt', '2025-02-13 IBAN transfer -25.00\n'
+                                '2025-02-14 Grocery -10.00\n')
+        self.assertEqual([(t.counterparty, t.amount) for t in result.transactions],
+                         [('IBAN transfer', Decimal('25')), ('Grocery', Decimal('10'))])
+        # Ambiguous header-like descriptions must fail, not publish only Grocery.
+        for merchant in ('Page 2 Books', 'Opening balance supplies'):
+            with self.subTest(merchant=merchant), self.assertRaises(NormalizationError):
+                self.normalize('.txt', f'2025-02-13 {merchant} -25.00\n'
+                               '2025-02-14 Grocery -10.00\n')
+
+    def test_balance_line_cannot_bypass_validation_after_initial_text_rows(self):
+        text = '2025-02-13 Bakery -1.00\n' * 10 + '2025-02-14 Bakery balance 987.50\n'
+        with self.assertRaises(NormalizationError):
+            self.normalize('.txt', text)
 
     def test_statement_default_applies_before_split_amount_precision_checks(self):
         result = self.normalize('.csv', 'Statement in KWD\ndate;debit;credit;counterparty\n'

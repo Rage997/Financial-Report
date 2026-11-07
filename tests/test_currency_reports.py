@@ -1,10 +1,14 @@
 """Multi-currency boundaries for report, graph, chart, and CLI selection."""
+import io
 import unittest
+from contextlib import redirect_stdout
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from finreport import graph, report
-from finreport.__main__ import _require_single_currency, _select_currency
+from finreport.__main__ import _require_single_currency, _select_currency, main
 from finreport.charts import render_chart_png
 from finreport.models import Category, Direction, Transaction
 
@@ -139,6 +143,46 @@ class CliCurrencySelectionTests(unittest.TestCase):
             _require_single_currency(self.txns, None, "graph")
         self.assertIn("--currency", str(ctx.exception))
 
+
+
+class CliReportYearTests(unittest.TestCase):
+    def run_report(self, year, currency=None):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, rules = root / "history.csv", root / "rules.json"
+            source.write_text(
+                "date;amount;currency;counterparty\n"
+                "2024-01-02;-100.00;CHF;PastOnlyShop\n"
+                "2025-01-02;-20.00;CHF;SelectedShop\n"
+                "2025-01-03;-30.00;USD;OtherCurrencyShop\n",
+                encoding="utf-8",
+            )
+            rules.write_text('{"rules":[]}', encoding="utf-8")
+            args = ["report", "--file", str(source), "--rules", str(rules),
+                    "--year", str(year)]
+            if currency is not None:
+                args.extend(["--currency", currency])
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = main(args)
+            self.assertEqual(result, 0)
+            return output.getvalue()
+
+    def test_year_and_currency_scope_every_report_section(self):
+        output = self.run_report(2025, "CHF")
+        self.assertIn("SelectedShop", output)
+        self.assertIn("20.00", output)
+        self.assertNotIn("PastOnlyShop", output)
+        self.assertNotIn("2024", output)
+        self.assertNotIn("100.00", output)
+        self.assertNotIn("OtherCurrencyShop", output)
+        self.assertNotIn("USD", output)
+
+    def test_year_with_no_transactions_does_not_leak_other_years(self):
+        output = self.run_report(2026)
+        for excluded in ("PastOnlyShop", "SelectedShop", "OtherCurrencyShop",
+                         "2024", "2025", "100.00", "20.00", "30.00"):
+            self.assertNotIn(excluded, output)
 
 
 if __name__ == "__main__":
