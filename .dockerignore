@@ -36,6 +36,8 @@
 !static/comparisons.js
 !static/appearance.js
 !static/appearance.css
+!static/print.js
+!static/print.css
 !static/imports.css
 !static/plotly.min.js
 !static/LICENSE.plotly.txt

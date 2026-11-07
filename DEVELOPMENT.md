@@ -15,7 +15,7 @@ listed rather than disappearing from the roadmap.
 | Completed | 10 | Anomaly flags | Implemented |
 | Completed | 8 | Period comparisons (MoM / YoY) | Implemented |
 | Completed | 11 | Multi-file (multi-bank) support | Implemented |
-| 1 | 13 | Dark mode, print/PDF and calendar view | Dark mode implemented; print/calendar planned |
+| 1 | 13 | Dark mode, print/PDF and calendar view | Dark mode and print/PDF implemented; calendar planned |
 
 Remaining delivery: **13**. A feature becomes
 implemented only after its user-facing path has been exercised.
@@ -155,8 +155,17 @@ matching palette, including network labels and hover text. Theme changes preserv
 filters and transaction pagination. Browser-verified for persistence, OS changes,
 storage denial, chart colors and mobile layout.
 
-**Still planned:** dependency-free print / save-as-PDF via a print stylesheet,
-and a calendar month view where clicking a day filters transactions to that date.
+**Print/PDF implemented:** the header opens the local browser print dialog.
+A light A4-landscape stylesheet removes editing/import controls and table scroll
+clipping. The report identifies sources, primary networth source, filters and
+the visible transaction page; charts/KPIs cover all filtered rows. The button
+awaits chart redraws and restores the screen theme and pagination afterward.
+Native browser printing also scales the SVGs. Real Chromium PDFs were checked
+for unclipped charts/tables, page scope, three-decimal amounts and dark-mode
+restoration. No server upload, PDF dependency or external service is involved.
+
+**Still planned:** a calendar month view where clicking a day filters
+transactions to that date.
 
 ## Ground rules for future work
 

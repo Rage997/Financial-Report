@@ -1,0 +1,93 @@
+/* Light, unclipped output for the current filtered dashboard and visible table page. */
+.print-only{display:none}
+html[data-printing] main{width:277mm;max-width:277mm;margin:0;padding:0}
+
+@media print{
+@page{size:A4 landscape;margin:12mm 10mm}
+:root,html[data-theme='dark']{
+  --bg:#fff;--ink:#172b42;--muted:#596a80;--line:#dce4ed;
+  --blue:#235ac9;--green:#126e5b;--red:#b63f4e;
+  color-scheme:light
+}
+html,body{background:#fff!important;color:#172b42}
+body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+header{background:#fff!important;color:#172b42!important}
+header p{color:#596a80!important}
+main{max-width:none!important;margin:0!important;padding:0!important}
+.print-only{display:block;white-space:pre-line;font-size:11px;line-height:1.5;margin-bottom:16px}
+/* Action controls, import and AI overlays never print. */
+.actions,
+.screen-only,
+.filters,
+#sourcesCard,
+#onboarding,
+#importJobs,
+.ai-panel,
+.import-hint,
+.demo-row,
+.footer,
+#reset,
+#export,
+#resetZoom,
+#closeFile,
+#importBtn,
+#aiToggle,
+#clearCounterparty,
+#clearCounterpartyChart,
+#clearCounterpartyTable,
+#clearCounterpartyHistory,
+#prev,
+#next,
+#pickFile,
+#demoBtn,
+#continueBtn,
+.job-actions,
+.ai-actions{display:none!important}
+/* Force light surfaces even if the dark attribute is still set. */
+html[data-theme='dark'] .filters,
+html[data-theme='dark'] .kpi,
+html[data-theme='dark'] .card,
+html[data-theme='dark'] .ai-panel{background:#fff}
+html[data-theme='dark'] select,
+html[data-theme='dark'] input,
+html[data-theme='dark'] button{background:#fff;border-color:#dce4ed;color:#172b42}
+html[data-theme='dark'] th,
+html[data-theme='dark'] .ai-review th{background:#eef3f9}
+html[data-theme='dark'] td,
+html[data-theme='dark'] .ai-review td{border-top-color:#edf1f5}
+html[data-theme='dark'] tbody tr:hover{background:#fff}
+html[data-theme='dark'] .badge,
+html[data-theme='dark'] .fmt,
+html[data-theme='dark'] .job-status{background:#edf2f9}
+html[data-theme='dark'] .job-progress{background:#edf1f5}
+html[data-theme='dark'] .notice-warn{background:#fdf8f0}
+html[data-theme='dark'] .link,
+html[data-theme='dark'] button:hover{color:#235ac9}
+/* No scroll clipping: the visible page of data is the print scope. */
+.table-wrap,
+.saved-list,
+.history-list,
+.ai-cp-list,
+.ai-review-wrap{max-height:none!important;overflow:visible!important}
+th{position:static!important}
+table{width:100%;font-size:10px}
+td,th{padding:7px 5px;white-space:normal;overflow-wrap:anywhere}
+td.name{min-width:0;max-width:65mm}
+thead{display:table-header-group}
+tr{break-inside:avoid}
+.grid{grid-template-columns:1fr!important}
+.card,
+.kpi,
+.notice,
+.job,
+.chart{break-inside:avoid;page-break-inside:avoid}
+.heading h2{break-after:avoid;page-break-after:avoid}
+.js-plotly-plot .modebar{display:none!important}
+/* Light chart text/grid even if traces were last rendered for dark mode. */
+.js-plotly-plot .svg-container{width:100%!important}
+.js-plotly-plot svg.main-svg{width:100%!important}
+.js-plotly-plot svg.main-svg:first-child{background:#fff!important}
+.js-plotly-plot .bg{fill:#fff!important}
+.js-plotly-plot .gridlayer path{stroke:#edf1f5!important}
+.js-plotly-plot text{fill:#64748b!important}
+}

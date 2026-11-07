@@ -89,6 +89,12 @@ Use **Dark mode / Light mode** in the header. Your explicit choice is saved in
 this browser; without one, the dashboard follows the system theme. Charts update
 with the page, without clearing filters or changing the transaction page.
 
+**Print / Save PDF** opens your browser's print dialog; choose **Save as PDF**
+there. Output is light, landscape A4, and stays entirely on your machine.
+Charts/KPIs use all filtered transactions; the transaction table prints only its
+current page. The report records that page, sources, currency and filters.
+Printing does not change your theme preference or selection.
+
 ## Local AI
 
 Choose `FINREPORT_AI_TIER` in `.env`:

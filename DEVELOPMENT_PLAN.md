@@ -19,7 +19,7 @@ These are existing capabilities, not outstanding roadmap tasks.
 `DEVELOPMENT.md` owns the ordered feature tracker and acceptance scope.
 Counterparty history (#12), recurring payments (#7), anomaly flags (#10),
 period comparisons (#8) and multi-file analysis (#11) are implemented.
-Dark mode (#13) is implemented; **print/PDF and calendar view** remain next.
+Dark mode and print/PDF (#13) are implemented; **calendar view** remains next.
 
 ## Implemented capabilities
 
@@ -163,6 +163,11 @@ Dark mode (#13) is implemented; **print/PDF and calendar view** remain next.
   explicit choice, graceful session-only behavior when storage is denied, and
   coordinated chart/surface palettes. Filters and pagination survive theme changes.
   Verified in the browser across reloads, OS changes, denied storage and mobile.
+- **Print/PDF (#13)** — local browser printing with light A4-landscape output,
+  source/filter/page provenance, unclipped SVG charts and paginated tables.
+  Prints all filtered chart/KPI data and only the current transaction page;
+  restores theme, filters and pagination afterward. Verified the real button
+  lifecycle and generated Chromium PDFs, including three-decimal currency.
 
 The networth curve is a flow-based estimate from the **primary** bank export.
 It does **not** include market gains/losses, other banks or other assets. Aggregate
@@ -173,7 +178,7 @@ or summed together, and overlapping statements are not deduplicated.
 
 | Order | Feature | Status |
 |---|---|---|
-| 1 | #13 Print/PDF and calendar (dark mode implemented) | Planned |
+| 1 | #13 Calendar view (dark mode and print/PDF implemented) | Planned |
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic
 import/categorization (#14) and optional reviewed rule creation (#9) are already
