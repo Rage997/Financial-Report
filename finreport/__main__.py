@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from . import ai_rules, graph, networth, report
+from . import ai_rules, graph, networth, recurring, report
 from .charts import make_charts
 from .classifier import classify_all, load_rules
 from .currency import fraction_digits, normalize_currency
@@ -58,12 +58,15 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--direction", choices=["in", "out"], default=None,
                         help="force direction for all rows (auto-detected otherwise)")
         sp.add_argument("--currency", default=None,
-                        help="restrict to one currency (e.g. CHF); report/networth keep all currencies when omitted")
+                        help="restrict to one currency (e.g. CHF); report/networth/recurring keep currencies separate when omitted")
 
     r = sub.add_parser("report", help="monthly & yearly income/expense report")
     common(r)
     r.add_argument("--year", type=int, default=None, help="restrict to one year")
     r.add_argument("--min-count", type=int, default=1, help="min transactions to list a counterparty")
+
+    recurring_cmd = sub.add_parser("recurring", help="recurring-payment candidates over full file history")
+    common(recurring_cmd)
 
     n = sub.add_parser("networth", help="running account balance & networth curve")
     common(n)
@@ -103,6 +106,14 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print("=== Uncategorized (add rules for these) ===")
         print(report.uncategorized_report(txns))
+
+    elif args.command == "recurring":
+        txns = _load(args)
+        if args.currency is not None:
+            txns = _select_currency(txns, args.currency)
+        print("Cadence estimates, not confirmed obligations. Full file history; at least 3 payments per group.")
+        print("Trend: latest amount vs earlier median. Days past due: relative to last account/currency activity, not today.\n")
+        print(recurring.recurring_report(txns))
 
     elif args.command == "networth":
         txns = _load(args)

@@ -37,6 +37,20 @@ Imports stay saved locally. Under **Local AI rules**, review and approve categor
 - Currencies stay separate: **no exchange-rate conversion or combined currency totals**. Missing currency declarations produce a warning and default to CHF.
 - Uploaded statements show **cash flow starting at zero**, not your actual bank balance or total net worth. One dataset is analysed at a time.
 
+## Recurring payments
+
+The dashboard identifies candidates with at least three payments to or from the
+same counterparty, keeping accounts, directions and currencies separate. It shows
+cadence, average amount, latest amount change, last paid and estimated next due.
+Select a name to open its classification label's history.
+
+Detection uses the full file history; currency, direction and counterparty
+filters apply, but date/year/category filters do not reduce the sample. Irregular
+groups have no due-date estimate. Days past an estimate are measured against the
+last recorded activity in that account/currency, **not today**. Incomplete
+statements cannot prove a payment was missed; these are not confirmed obligations.
+No AI is needed for this analysis.
+
 ## Local AI
 
 Choose `FINREPORT_AI_TIER` in `.env`:
@@ -87,6 +101,7 @@ Without `FINREPORT_AI_URL`, AI is disabled; imports that need it will fail. For 
 
 ```bash
 python -m finreport report --file examples/demo-transactions.csv
+python -m finreport recurring --file examples/demo-transactions.csv --currency CHF
 python -m finreport --help
 ```
 

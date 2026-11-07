@@ -26,6 +26,7 @@
 !finreport/networth.py
 !finreport/parser.py
 !finreport/report.py
+!finreport/recurring.py
 !static
 !static/index.html
 !static/ai-rules.js

@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from finreport import ai_rules, graph, networth, report
+from finreport import ai_rules, graph, networth, recurring, report
 from finreport.imports import ACTIVE_STATES, ImportStore, MAX_UPLOAD_BYTES
 from finreport.settings import ai_config, load_environment
 from finreport.charts import CHART_NAMES, render_chart_png
@@ -263,6 +263,19 @@ def api_transactions(file: str | None = None, currency: str | None = None):
              "label": t.label or t.counterparty, "payment_type": t.payment_type,
              "balance": str(point.balance)}
             for t, point in zip(txns, points)
+        ],
+    }
+
+
+@app.get("/api/recurring")
+def api_recurring(file: str | None = None, currency: str | None = None):
+    p, txns = _load(file)
+    txns = _select_currency(txns, currency)
+    return {
+        "file": str(p.relative_to(ROOT)),
+        "rows": [
+            {key: str(value) if isinstance(value, Decimal) else value for key, value in row.items()}
+            for row in recurring.recurring_rows(txns)
         ],
     }
 

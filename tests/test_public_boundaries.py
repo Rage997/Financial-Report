@@ -78,6 +78,7 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
             "/", "/static/imports.js", "/docs", "/openapi.json", "/api/files",
             "/api/data?file=examples/demo.csv", "/api/transactions?file=examples/demo.csv",
             "/api/networth?file=examples/demo.csv", "/api/graph?file=examples/demo.csv",
+            "/api/recurring?file=examples/demo.csv",
             "/api/chart?name=monthly&file=examples/demo.csv", "/api/workspace",
             "/api/ai/status", "/api/ai/candidates?file=examples/demo.csv",
             f"/api/imports/{identifier}", f"/api/imports/{identifier}/source",
@@ -144,6 +145,35 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(error.exception.status_code, 404)
         (self.data / "linked.csv").symlink_to(self.private / "secret.csv")
         self.assertEqual(app.api_files()["files"], ["examples/demo.csv"])
+
+    async def test_recurring_history_preserves_precision_and_dataset_currency_boundaries(self):
+        (self.data / "demo.csv").write_text(
+            "date;amount;currency;counterparty\n"
+            "2024-12-01;-0.001;KWD;Rent\n"
+            "2025-01-01;-0.002;KWD;Rent\n"
+            "2025-02-01;-0.003;KWD;Rent\n"
+            "2025-03-05;-1.000;KWD;Other\n"
+            "2024-12-01;500;CHF;Salary\n"
+            "2025-01-01;500;CHF;Salary\n"
+            "2025-02-01;600;CHF;Salary\n", encoding="utf-8")
+        status, content = await self.request("/api/recurring?file=examples/demo.csv&currency=KWD")
+        self.assertEqual(status, 200)
+        row, = json.loads(content)["rows"]
+        self.assertEqual((row["counterparty"], row["currency"], row["direction"], row["count"]),
+                         ("Rent", "KWD", "out", 3))
+        self.assertEqual((row["average_amount"], row["trend_percent"]), ("0.002", "100.00"))
+        self.assertEqual((row["next_due"], row["overdue_days"]), ("2025-03-01", 4))
+        status, content = await self.request("/api/recurring?file=examples/demo.csv")
+        self.assertEqual(status, 200)
+        self.assertEqual({r["currency"] for r in json.loads(content)["rows"]}, {"CHF", "KWD"})
+        for target, expected in (
+                ("/api/recurring?file=private/data/secret.csv", 404),
+                ("/api/recurring?file=examples/../private/data/secret.csv", 404),
+                ("/api/recurring?file=examples/demo.csv&currency=USD", 400),
+                ("/api/recurring?file=examples/demo.csv&currency=unknown", 400)):
+            with self.subTest(target=target):
+                status, _ = await self.request(target)
+                self.assertEqual(status, expected)
 
     async def test_import_stays_private_and_never_overwrites_sources(self):
         for name in ("../escape.csv", "/tmp/escape.csv", "folder\\escape.csv"):
