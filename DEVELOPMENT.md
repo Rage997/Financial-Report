@@ -13,11 +13,11 @@ listed rather than disappearing from the roadmap.
 | Completed | 12 | Counterparty history panel | Implemented |
 | Completed | 7 | Recurring payments detector | Implemented |
 | Completed | 10 | Anomaly flags | Implemented |
-| 1 | 8 | Period comparisons (MoM / YoY) | Planned |
-| 2 | 11 | Multi-file (multi-bank) support | Planned |
-| 3 | 13 | Dark mode, print/PDF and calendar view | Planned |
+| Completed | 8 | Period comparisons (MoM / YoY) | Implemented |
+| 1 | 11 | Multi-file (multi-bank) support | Planned |
+| 2 | 13 | Dark mode, print/PDF and calendar view | Planned |
 
-Remaining delivery order: **8 → 11 → 13**. A feature becomes
+Remaining delivery order: **11 → 13**. A feature becomes
 implemented only after its user-facing path has been exercised.
 Per-category monthly budgets and a cash-flow waterfall chart remain out of scope.
 
@@ -53,12 +53,22 @@ Verified through focused analysis/CLI and API tests, the full regression suite,
 an actual demo CLI run and desktop/mobile browser checks with isolated fixtures.
 Out of scope: cash-flow forecasting, cross-bank recurrence, manual cadence editing.
 
-### 8 — Period comparisons (MoM / YoY)
+### 8 — Period comparisons (MoM / YoY, implemented)
 
-Frontend-only: "vs previous period" deltas under the Income and Expenses KPIs
-(derived from the active filters), and a "compare to last year" overlay on
-the monthly chart. Missing prior-period data shows as empty, never a
-misleading 0%.
+Income and Expenses show absolute and percentage deltas under the KPIs using
+the same non-date filters. A full calendar month compares with the prior month;
+a year selection compares full calendar years; custom inclusive ranges compare
+the immediately preceding equal number of days. The displayed dates make the
+scope explicit. Refunds/reversals keep their signs. Percent = delta / absolute
+previous amount; a zero baseline has no percentage. No earlier statement activity
+means unavailable data, never a misleading 0%. Available records do not prove
+that either statement period is complete.
+
+The monthly chart's prior-year overlay aligns the same months, leaves gaps for
+missing prior data, and is disabled for yearly grouping. All money totals use
+integer minor units in `static/comparisons.js`. Browser verification and optional
+Node-backed regression tests cover leap/non-leap months, year boundaries,
+custom ranges, refunds, zero/missing baselines and overlay alignment.
 
 ### 9 — Local AI → automatic and reviewed rules (implemented)
 

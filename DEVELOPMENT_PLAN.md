@@ -17,9 +17,9 @@ boundary, restart recovery, workspace race fixes and consistent CLI year filters
 These are existing capabilities, not outstanding roadmap tasks.
 
 `DEVELOPMENT.md` owns the ordered feature tracker and acceptance scope.
-Counterparty history (#12), recurring payments (#7) and anomaly flags (#10) are
-implemented. The next delivery is **#8: period comparisons**; multi-file
-analysis and cosmetic/quality work remain planned.
+Counterparty history (#12), recurring payments (#7), anomaly flags (#10) and
+period comparisons (#8) are implemented. The next delivery is **#11: multi-file
+analysis**; cosmetic/quality work remains planned.
 
 ## Implemented capabilities
 
@@ -146,6 +146,12 @@ analysis and cosmetic/quality work remain planned.
   IDs cannot manufacture a baseline. Thresholds use Decimal; the fixed floor
   is 15 native units, not converted CHF. Candidates are explanatory, not a fraud
   or error verdict. Unit/API and live CLI/browser flows verified.
+- **Period comparisons (#8)** — frontend-only Income/Expenses KPI deltas with
+  explicit comparison dates and a prior-year monthly-chart overlay. Full months
+  and years use calendar periods; custom ranges use an equal preceding day count.
+  Non-date filters and refund accounting apply equally to both periods. Missing
+  history stays unavailable; zero baselines have no percentage. Integer-minor-unit
+  calculations have browser coverage and optional Node-backed regression tests.
 
 The networth curve is a flow-based estimate from the selected bank export. It
 does **not** include market gains/losses on investments, other banks, or
@@ -156,9 +162,8 @@ at a time (no multi-bank consolidation).
 
 | Order | Feature | Status |
 |---|---|---|
-| 1 | #8 Period comparisons | Planned |
-| 2 | #11 Multi-file / multi-bank analysis | Planned |
-| 3 | #13 Dark mode, print/PDF and calendar | Planned |
+| 1 | #11 Multi-file / multi-bank analysis | Planned |
+| 2 | #13 Dark mode, print/PDF and calendar | Planned |
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic
 import/categorization (#14) and optional reviewed rule creation (#9) are already

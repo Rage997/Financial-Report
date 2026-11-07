@@ -60,6 +60,15 @@ direction and currency. The thresholds are median + max(3 × median absolute
 deviation, 15 native currency units), or 3 × median. This is a deterministic
 review aid, not proof of an error or fraud; no AI or exchange conversion is used.
 
+## Period comparisons
+
+Income and Expenses include deltas against the previous calendar month/year
+or an equally long preceding custom date range. The dates below the KPIs explain
+the comparison; non-date filters apply to both periods. Missing history shows
+unavailable, and zero baselines have no percentage. Choose **Compare to last year**
+on the monthly chart to overlay prior-year activity without filling missing data
+with invented zeros. Comparisons cover available records, not verified full statements.
+
 ## Local AI
 
 Choose `FINREPORT_AI_TIER` in `.env`:
@@ -124,7 +133,8 @@ python -m finreport --help
 
 ## Development
 
-Run tests with `python -m unittest discover -s tests -v`.
+Run tests with `python -m unittest discover -s tests -v`. Node, when installed,
+also enables the frontend calculation regressions; it is not needed to run the app.
 
 See [implemented capabilities](DEVELOPMENT_PLAN.md) and the [roadmap](DEVELOPMENT.md) for details.
 

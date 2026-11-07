@@ -33,6 +33,7 @@
 !static/ai-rules.js
 !static/ai-rules.css
 !static/imports.js
+!static/comparisons.js
 !static/imports.css
 !static/plotly.min.js
 !static/LICENSE.plotly.txt
