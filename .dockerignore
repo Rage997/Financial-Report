@@ -27,6 +27,7 @@
 !finreport/parser.py
 !finreport/report.py
 !finreport/recurring.py
+!finreport/anomalies.py
 !static
 !static/index.html
 !static/ai-rules.js

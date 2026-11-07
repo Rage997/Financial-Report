@@ -35,6 +35,7 @@ PUBLIC_FILES = (
     "tests/test_currency_structured_imports.py",
     "tests/test_currency_text_imports.py",
     "tests/test_recurring.py",
+    "tests/test_anomalies.py",
     "static/plotly.min.js",
     "static/LICENSE.plotly.txt",
     "finreport/__init__.py",
@@ -52,6 +53,7 @@ PUBLIC_FILES = (
     "finreport/parser.py",
     "finreport/report.py",
     "finreport/recurring.py",
+    "finreport/anomalies.py",
 )
 
 

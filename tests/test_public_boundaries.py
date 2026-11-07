@@ -79,6 +79,7 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
             "/api/data?file=examples/demo.csv", "/api/transactions?file=examples/demo.csv",
             "/api/networth?file=examples/demo.csv", "/api/graph?file=examples/demo.csv",
             "/api/recurring?file=examples/demo.csv",
+            "/api/anomalies?file=examples/demo.csv",
             "/api/chart?name=monthly&file=examples/demo.csv", "/api/workspace",
             "/api/ai/status", "/api/ai/candidates?file=examples/demo.csv",
             f"/api/imports/{identifier}", f"/api/imports/{identifier}/source",
@@ -145,6 +146,24 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(error.exception.status_code, 404)
         (self.data / "linked.csv").symlink_to(self.private / "secret.csv")
         self.assertEqual(app.api_files()["files"], ["examples/demo.csv"])
+
+    async def test_anomaly_api_keeps_earlier_history_and_decimal_thresholds(self):
+        (self.data / "demo.csv").write_text(
+            "date;amount;currency;counterparty\n"
+            "2025-01-01;-100.001;KWD;Rent\n2025-02-01;-100.001;KWD;Rent\n"
+            "2025-03-01;-100.001;KWD;Rent\n2025-04-01;-115.002;KWD;Rent\n", encoding="utf-8")
+        status, content = await self.request("/api/anomalies?file=examples/demo.csv&currency=KWD")
+        self.assertEqual(status, 200)
+        row, = json.loads(content)["rows"]
+        self.assertEqual((row["index"], row["amount"], row["robust_limit"]), (3, "115.002", "115.001"))
+        status, content = await self.request("/api/transactions?file=examples/demo.csv")
+        self.assertEqual(status, 200)
+        rows = json.loads(content)["transactions"]
+        self.assertEqual([r["anomaly"] is not None for r in rows], [False, False, False, True])
+        for target, expected in (("/api/anomalies?file=private/data/secret.csv", 404),
+                                 ("/api/anomalies?file=examples/demo.csv&currency=USD", 400)):
+            status, _ = await self.request(target)
+            self.assertEqual(status, expected)
 
     async def test_recurring_history_preserves_precision_and_dataset_currency_boundaries(self):
         (self.data / "demo.csv").write_text(

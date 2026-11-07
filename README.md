@@ -51,6 +51,15 @@ last recorded activity in that account/currency, **not today**. Incomplete
 statements cannot prove a payment was missed; these are not confirmed obligations.
 No AI is needed for this analysis.
 
+## Anomaly review
+
+Choose **Show anomalies only** to inspect unusually large payments. Hover or
+focus an **Anomaly** badge for its explanation. Each payment is compared with at
+least three strictly earlier payments to the same counterparty, account,
+direction and currency. The thresholds are median + max(3 × median absolute
+deviation, 15 native currency units), or 3 × median. This is a deterministic
+review aid, not proof of an error or fraud; no AI or exchange conversion is used.
+
 ## Local AI
 
 Choose `FINREPORT_AI_TIER` in `.env`:
@@ -102,6 +111,7 @@ Without `FINREPORT_AI_URL`, AI is disabled; imports that need it will fail. For 
 ```bash
 python -m finreport report --file examples/demo-transactions.csv
 python -m finreport recurring --file examples/demo-transactions.csv --currency CHF
+python -m finreport anomalies --file examples/demo-transactions.csv --currency CHF
 python -m finreport --help
 ```
 

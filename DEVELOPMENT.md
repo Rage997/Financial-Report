@@ -12,12 +12,12 @@ listed rather than disappearing from the roadmap.
 | Completed | 14 | Upload-first persistent imports and local model tiers | Implemented |
 | Completed | 12 | Counterparty history panel | Implemented |
 | Completed | 7 | Recurring payments detector | Implemented |
-| 1 | 10 | Anomaly flags | Planned |
-| 2 | 8 | Period comparisons (MoM / YoY) | Planned |
-| 3 | 11 | Multi-file (multi-bank) support | Planned |
-| 4 | 13 | Dark mode, print/PDF and calendar view | Planned |
+| Completed | 10 | Anomaly flags | Implemented |
+| 1 | 8 | Period comparisons (MoM / YoY) | Planned |
+| 2 | 11 | Multi-file (multi-bank) support | Planned |
+| 3 | 13 | Dark mode, print/PDF and calendar view | Planned |
 
-Remaining delivery order: **10 → 8 → 11 → 13**. A feature becomes
+Remaining delivery order: **8 → 11 → 13**. A feature becomes
 implemented only after its user-facing path has been exercised.
 Per-category monthly budgets and a cash-flow waterfall chart remain out of scope.
 
@@ -82,13 +82,21 @@ medium or high local model. Original files, normalization evidence, rule
 snapshots and active selection persist in profile-isolated workspaces; see
 `DEVELOPMENT_PLAN.md` for the implemented boundaries and `README.md` for usage.
 
-### 10 — Anomaly flags
+### 10 — Anomaly flags (implemented)
 
-Flag transactions far from their own counterparty's history (e.g. rent at 2×
-typical). Requires a minimum history per group; flags when the amount exceeds
-`median + max(3 × MAD, 15 CHF)` or `3 × median`. UI: a badge on flagged rows,
-a "show anomalies only" toggle, and a hover tooltip with the reason. Out of
-scope: ML models, flagging first-time counterparties, per-user thresholds.
+`finreport/anomalies.py`, the `anomalies` CLI and `/api/anomalies` flag amounts
+strictly above `median + max(3 × MAD, 15 native units)` or `3 × median`.
+The floor is CHF 15 for CHF, and 15 units of the native currency otherwise;
+no exchange conversion is implied. At least three strictly earlier payments
+to the same raw counterparty/account/direction/currency are required. Same-day
+transactions cannot influence each other's baseline, and future data cannot
+retroactively flag a first-time payment. Duplicate IDs remain separate occurrences.
+
+The transactions API includes each flag's Decimal thresholds and explanation.
+The dashboard has accessible reason badges and an anomalies-only filter; other
+filters intersect it and reset clears it. These are review candidates, not errors.
+Analysis/API regressions, the actual CLI and browser filtering/precision flows
+have been exercised. Out of scope: ML models and per-user thresholds.
 
 ### 11 — Multi-file (multi-bank) support
 

@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from finreport import ai_rules, graph, networth, recurring, report
+from finreport import ai_rules, anomalies, graph, networth, recurring, report
 from finreport.imports import ACTIVE_STATES, ImportStore, MAX_UPLOAD_BYTES
 from finreport.settings import ai_config, load_environment
 from finreport.charts import CHART_NAMES, render_chart_png
@@ -250,6 +250,7 @@ def api_transactions(file: str | None = None, currency: str | None = None):
     p, txns = _load(file)
     txns = _select_currency(txns, currency)
     points, opening_values, bases = _financial_series(p, txns)
+    flags = anomalies.anomaly_flags(txns)
     return {
         "file": str(p.relative_to(ROOT)),
         "currencies": sorted(opening_values),
@@ -261,8 +262,26 @@ def api_transactions(file: str | None = None, currency: str | None = None):
              "amount": str(t.amount), "currency": t.currency, "direction": t.direction.value,
              "category": t.category.value, "counterparty": t.counterparty,
              "label": t.label or t.counterparty, "payment_type": t.payment_type,
-             "balance": str(point.balance)}
-            for t, point in zip(txns, points)
+             "balance": str(point.balance),
+             "anomaly": {key: str(value) if isinstance(value, Decimal) else value
+                         for key, value in flag.items()} if flag else None}
+            for t, point, flag in zip(txns, points, flags)
+        ],
+    }
+
+
+@app.get("/api/anomalies")
+def api_anomalies(file: str | None = None, currency: str | None = None):
+    p, txns = _load(file)
+    txns = _select_currency(txns, currency)
+    return {
+        "file": str(p.relative_to(ROOT)),
+        "rows": [
+            {"index": index, "id": txn.txn_id, "date": txn.date.isoformat(),
+             "counterparty": txn.counterparty, "account": txn.account,
+             "currency": txn.currency, "direction": txn.direction.value, "amount": str(txn.amount),
+             **{key: str(value) if isinstance(value, Decimal) else value for key, value in flag.items()}}
+            for index, (txn, flag) in enumerate(zip(txns, anomalies.anomaly_flags(txns))) if flag
         ],
     }
 

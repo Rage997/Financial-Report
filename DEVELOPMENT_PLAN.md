@@ -17,8 +17,8 @@ boundary, restart recovery, workspace race fixes and consistent CLI year filters
 These are existing capabilities, not outstanding roadmap tasks.
 
 `DEVELOPMENT.md` owns the ordered feature tracker and acceptance scope.
-Counterparty history (#12) and recurring payments (#7) are now implemented.
-The next delivery is **#10: anomaly flags**; period comparisons, multi-file
+Counterparty history (#12), recurring payments (#7) and anomaly flags (#10) are
+implemented. The next delivery is **#8: period comparisons**; multi-file
 analysis and cosmetic/quality work remain planned.
 
 ## Implemented capabilities
@@ -139,6 +139,13 @@ analysis and cosmetic/quality work remain planned.
   cleared and superseded dataset loads cannot retain stale recurrence results.
   Tested through CLI/API and real desktop/mobile browser flows. Docker and
   public-export allowlists include the module.
+- **Anomaly flags (#10)** — stdlib `anomalies` CLI, `/api/anomalies`, transaction
+  reason badges and an anomalies-only filter. Median/MAD and ratio thresholds
+  use at least three strictly earlier payments, keeping exact counterparties,
+  accounts, directions and currencies separate. Same-day ordering and duplicate
+  IDs cannot manufacture a baseline. Thresholds use Decimal; the fixed floor
+  is 15 native units, not converted CHF. Candidates are explanatory, not a fraud
+  or error verdict. Unit/API and live CLI/browser flows verified.
 
 The networth curve is a flow-based estimate from the selected bank export. It
 does **not** include market gains/losses on investments, other banks, or
@@ -149,10 +156,9 @@ at a time (no multi-bank consolidation).
 
 | Order | Feature | Status |
 |---|---|---|
-| 1 | #10 Anomaly flags | Planned |
-| 2 | #8 Period comparisons | Planned |
-| 3 | #11 Multi-file / multi-bank analysis | Planned |
-| 4 | #13 Dark mode, print/PDF and calendar | Planned |
+| 1 | #8 Period comparisons | Planned |
+| 2 | #11 Multi-file / multi-bank analysis | Planned |
+| 3 | #13 Dark mode, print/PDF and calendar | Planned |
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic
 import/categorization (#14) and optional reviewed rule creation (#9) are already
@@ -168,6 +174,7 @@ python -m uvicorn app:app --host 127.0.0.1 --port 8010   # → http://localhost:
 mkdir -p output
 python -m finreport report   --file examples/demo-transactions.csv
 python -m finreport recurring --file examples/demo-transactions.csv --currency CHF
+python -m finreport anomalies --file examples/demo-transactions.csv --currency CHF
 python -m finreport networth --file examples/demo-transactions.csv --csv output/networth.csv
 python -m finreport graph    --file examples/demo-transactions.csv --min-count 2 --out graph.html
 python -m finreport charts   --file examples/demo-transactions.csv --outdir output
@@ -178,7 +185,7 @@ mount load at process startup.
 
 ## Dependencies
 
-The report, recurring, networth, and graph commands use the Python standard library.
+The report, recurring, anomalies, networth, and graph commands use the Python standard library.
 The web app adds `fastapi`, `uvicorn`, and `python-multipart`; charts add
 `matplotlib`. Shared local configuration uses `python-dotenv`. Import readers
 use `openpyxl`, `xlrd`, `pypdf`, and `defusedxml`; no external OCR service is used.
