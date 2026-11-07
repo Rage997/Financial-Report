@@ -51,8 +51,12 @@ def _fig_networth(plt, txns, opening_balance, opening_networth, cash_flow_only, 
     dates = [p.date for p in points]
     ax.plot(dates, [float(p.networth) for p in points], color="#1565c0", lw=2,
             label="Cash flow excluding transfers/investments" if cash_flow_only else "Networth")
-    ax.plot(dates, [float(p.balance) for p in points], color="#ef6c00", lw=1.2, ls="--",
-            label="Cumulative cash flow" if cash_flow_only else "Account balance")
+    for account in dict.fromkeys(p.account for p in points):
+        account_points = [p for p in points if p.account == account]
+        ax.plot([p.date for p in account_points], [float(p.balance) for p in account_points],
+                lw=1.2, ls="--", marker=".", markersize=5,
+                label=("Cumulative cash flow" if cash_flow_only else "Account balance")
+                      + (f" · {account}" if account else ""))
     ax.set_title("Imported statement: zero-based cash flow" if cash_flow_only
                  else "Networth (bank flows) & account balance")
     ax.set_ylabel(currency)

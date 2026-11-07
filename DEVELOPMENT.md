@@ -14,10 +14,10 @@ listed rather than disappearing from the roadmap.
 | Completed | 7 | Recurring payments detector | Implemented |
 | Completed | 10 | Anomaly flags | Implemented |
 | Completed | 8 | Period comparisons (MoM / YoY) | Implemented |
-| 1 | 11 | Multi-file (multi-bank) support | Planned |
-| 2 | 13 | Dark mode, print/PDF and calendar view | Planned |
+| Completed | 11 | Multi-file (multi-bank) support | Implemented |
+| 1 | 13 | Dark mode, print/PDF and calendar view | Planned |
 
-Remaining delivery order: **11 → 13**. A feature becomes
+Remaining delivery: **13**. A feature becomes
 implemented only after its user-facing path has been exercised.
 Per-category monthly budgets and a cash-flow waterfall chart remain out of scope.
 
@@ -44,8 +44,8 @@ an ambiguous latest payment date has no trend. Days past the estimate use the la
 recorded activity in the same account/currency, never today's date. These are
 candidates, not confirmed obligations or proof of missed payments.
 
-Detection uses the full file history. The card respects currency, direction and
-counterparty selection/search, not date/year/category filters. Clicking a name
+Detection uses each source's full file history. The card respects source,
+currency, direction and counterparty selection/search, not date/year/category filters. Clicking a name
 opens its classification label's full-history panel. Clearing, failed loads and
 dataset switches clear old results; late responses cannot replace a newer dataset.
 
@@ -108,21 +108,36 @@ filters intersect it and reset clears it. These are review candidates, not error
 Analysis/API regressions, the actual CLI and browser filtering/precision flows
 have been exercised. Out of scope: ML models and per-user thresholds.
 
-### 11 — Multi-file (multi-bank) support
+### 11 — Multi-file (multi-bank) support (implemented)
 
-Load more than one bank CSV side by side with a per-source filter; KPIs and
-charts aggregate over the selected sources. Each transaction keeps its own
-file's running balance (per-account, not merged); the networth curve uses a
-single primary source. Out of scope: merged cross-bank networth,
-cross-bank round-trip deduplication, per-bank opening-balance reconciliation.
+The Analysis sources card includes multiple saved CSV/normalized statements,
+selects a primary source, and filters displayed sources. KPIs, comparisons,
+history, network and charts aggregate the shown sources within one currency.
+Transaction tables and CSV exports retain source/account provenance. Recurrence
+and anomalies remain source-local; duplicate IDs and overlapping statements are
+not deduplicated. The primary source alone supplies the dotted networth estimate,
+independent of the source/category/direction filter; it is never merged bank wealth.
+
+Running balances are independent per file/account/currency. Multiple accounts
+within a currency start at zero, rather than duplicating a source-wide opening
+balance; the source-wide networth opening applies once. CLI exports and static
+charts retain account identity too. Additional sources are session-only; opening
+a dataset starts a single-source selection and the primary uses existing session
+persistence. Deleted secondary imports are removed from totals. Failed loads
+clear all results, and superseded responses cannot resurrect excluded sources.
+
+Verified with real multi-source browser flows, import/deletion, currency and
+primary-source switches, failure/race scenarios, exports, API/unit tests, and
+actual account-aware CLI/chart runs. Out of scope: merged cross-bank networth,
+round-trip deduplication and opening-balance reconciliation.
 
 ### 12 — Counterparty history panel (implemented)
 
 Frontend-only: selecting a counterparty from the table, flows chart or network
 opens its case file: incoming, outgoing, net, count, first/last dates and average
 transaction amount, plus monthly incoming/outgoing bars. Use the selected label
-(the dashboard's existing grouping) and currency over the full dataset history,
-independent of date, year, category and direction filters. Average means gross
+(the dashboard's existing grouping) and currency over the full history of shown
+sources, independent of date, year, category, direction and anomaly filters. Average means gross
 flow divided by transaction count. Missing months show zero; currencies never
 combine. Hide the panel when selection is cleared, a dataset changes or closes,
 and show an explicit empty state if the selection has no activity in a currency.

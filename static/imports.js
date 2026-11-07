@@ -115,6 +115,8 @@ async function refreshWorkspace(){
   if(listing.files.includes(selected))el.fileSelect.value=selected;
   jobs.clear();for(const j of next.imports)if(!removed.has(j.id))jobs.set(j.id,j);
   renderSupported();renderSaved();renderJobs();
+  await window.dashboard.refreshSources(listing.files);
+  if(!window.dashboard.currentFile())showOnboarding();
 }
 async function openImport(j,intent=selectionVersion){
   await refreshWorkspace();

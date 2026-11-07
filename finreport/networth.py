@@ -1,9 +1,12 @@
 """Running balance and networth computation.
 
-- Account balance: opening balance + every flow (in − out).
+- Account balance: each account's opening balance + its flows (in − out).
 - Networth: opening networth + income − expenses. Transfers (own accounts)
   and investments (brokers, pillar 3) move money between own assets and are
   neutral. Uncategorized flows are treated as income/expense (conservative).
+- With multiple accounts in one currency, account balances start at zero:
+  a source-wide opening balance cannot be allocated without reconciliation.
+  The source-wide networth estimate still applies its opening once per currency.
 """
 from __future__ import annotations
 
@@ -24,6 +27,7 @@ class NetworthPoint:
     event: str
     balance: Decimal
     networth: Decimal
+    account: str
     currency: str = "CHF"
 
 
@@ -59,12 +63,17 @@ def compute_series(
     opening_currency: str = "CHF",
 ) -> list[NetworthPoint]:
     opening_currency = normalize_currency(opening_currency)
-    balances: dict[str, Decimal] = {}
+    accounts: dict[str, set[str]] = {}
+    for txn in txns:
+        accounts.setdefault(normalize_currency(txn.currency), set()).add(txn.account)
+    balances: dict[tuple[str, str], Decimal] = {}
     networths: dict[str, Decimal] = {}
     points: list[NetworthPoint] = []
     for t in txns:
         currency = normalize_currency(t.currency)
-        bal = balances.get(currency, opening_balance if currency == opening_currency else Decimal("0"))
+        key = (currency, t.account)
+        opening = opening_balance if currency == opening_currency and len(accounts[currency]) == 1 else Decimal("0")
+        bal = balances.get(key, opening)
         nw = networths.get(currency, opening_networth if currency == opening_currency else Decimal("0"))
         if t.direction == Direction.IN:
             bal += t.amount
@@ -75,28 +84,29 @@ def compute_series(
         elif t.category == Category.EXPENSE:
             nw -= t.amount if t.direction == Direction.OUT else -t.amount
         # TRANSFER / INVESTMENT: neutral for networth
-        balances[currency], networths[currency] = bal, nw
-        points.append(NetworthPoint(t.date, t.label or t.counterparty, bal, nw, currency))
+        balances[key], networths[currency] = bal, nw
+        points.append(NetworthPoint(t.date, t.label or t.counterparty, bal, nw, t.account, currency))
     return points
 
 
 def export_csv(points: list[NetworthPoint], path: str | Path) -> None:
     with Path(path).open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["date", "event", "currency", "account_balance", "networth"])
+        w.writerow(["date", "event", "currency", "account", "account_balance", "networth"])
         for p in points:
             digits = fraction_digits(p.currency)
             event = "'" + p.event if p.event.startswith(("=", "+", "-", "@", "\t", "\r", "\n")) else p.event
-            w.writerow([p.date.isoformat(), event, p.currency,
+            account = "'" + p.account if p.account.startswith(("=", "+", "-", "@", "\t", "\r", "\n")) else p.account
+            w.writerow([p.date.isoformat(), event, p.currency, account,
                         f"{p.balance:.{digits}f}", f"{p.networth:.{digits}f}"])
 
 
 def render_table(points: list[NetworthPoint]) -> str:
     rows = [
-        [p.date.isoformat(), p.event[:40], p.currency,
+        [p.date.isoformat(), p.event[:40], p.currency, p.account or "—",
          f"{p.balance:,.{fraction_digits(p.currency)}f}",
          f"{p.networth:,.{fraction_digits(p.currency)}f}"]
         for p in points
     ]
     from .report import render_table as _rt
-    return _rt(["Date", "Event", "Currency", "Account balance", "Networth"], rows)
+    return _rt(["Date", "Event", "Currency", "Account", "Account balance", "Networth"], rows)

@@ -186,8 +186,9 @@ def _financial_series(path: Path, txns: list[Transaction]) -> tuple[
     opening_currency = "CHF" if managed else networth.config_currency(CONFIG)
     ob, onw = _financial_config(path, opening_currency)
     currencies = sorted({txn.currency for txn in txns})
+    account_counts = {code: len({txn.account for txn in txns if txn.currency == code}) for code in currencies}
     opening_values = {
-        code: {"balance": str(ob if code == opening_currency else Decimal("0")),
+        code: {"balance": str(ob if code == opening_currency and account_counts[code] == 1 else Decimal("0")),
                "networth": str(onw if code == opening_currency else Decimal("0"))}
         for code in currencies
     }
@@ -258,7 +259,7 @@ def api_transactions(file: str | None = None, currency: str | None = None):
         "opening_values": opening_values,
         "balance_basis_by_currency": bases,
         "transactions": [
-            {"id": t.txn_id, "date": t.date.isoformat(),
+            {"id": t.txn_id, "date": t.date.isoformat(), "account": t.account, "source": str(p.relative_to(ROOT)),
              "amount": str(t.amount), "currency": t.currency, "direction": t.direction.value,
              "category": t.category.value, "counterparty": t.counterparty,
              "label": t.label or t.counterparty, "payment_type": t.payment_type,
@@ -312,7 +313,7 @@ def api_networth(file: str | None = None, year: int | None = None, currency: str
         "opening_values": opening_values,
         "balance_basis_by_currency": bases,
         "points": [
-            {"date": pt.date.isoformat(), "event": pt.event, "currency": pt.currency,
+            {"date": pt.date.isoformat(), "event": pt.event, "currency": pt.currency, "account": pt.account,
              "balance": str(pt.balance), "networth": str(pt.networth)}
             for pt in points
         ],

@@ -3,6 +3,7 @@ import csv
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -55,6 +56,33 @@ class CurrencyBalanceTests(unittest.TestCase):
             ], *load_config(path, "EUR"), opening_currency="EUR")
             self.assertEqual([(p.balance, p.networth) for p in points],
                              [(Decimal("20"), Decimal("20")), (Decimal("130"), Decimal("280"))])
+
+    def test_accounts_keep_independent_balances_without_inventing_openings(self):
+        txns = [
+            replace(self.transaction("1", "100", "CHF", Category.INCOME), account="A"),
+            replace(self.transaction("2", "200", "CHF", Category.INCOME), account="B"),
+            replace(self.transaction("3", "-20", "CHF", Category.EXPENSE), account="A"),
+            replace(self.transaction("4", "-50", "CHF", Category.TRANSFER), account="B"),
+        ]
+        points = compute_series(txns, Decimal("1000"), Decimal("3000"))
+        self.assertEqual([(p.account, p.balance) for p in points],
+                         [("A", Decimal(100)), ("B", Decimal(200)),
+                          ("A", Decimal(80)), ("B", Decimal(150))])
+        self.assertEqual([p.networth for p in points],
+                         [Decimal(3100), Decimal(3300), Decimal(3280), Decimal(3280)])
+        single = compute_series([txns[0], txns[2]], Decimal(1000))
+        self.assertEqual([p.balance for p in single], [Decimal(1100), Decimal(1080)])
+
+    def test_export_preserves_account_provenance_and_escapes_formulas(self):
+        txns = [replace(self.transaction("1", "10", "CHF", Category.INCOME), account="=unsafe"),
+                replace(self.transaction("2", "20", "CHF", Category.INCOME), account="B")]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "balances.csv"
+            export_csv(compute_series(txns), path)
+            with path.open(newline="") as stream:
+                rows = list(csv.DictReader(stream))
+        self.assertEqual([(r["account"], r["account_balance"]) for r in rows],
+                         [("'=unsafe", "10.00"), ("B", "20.00")])
 
     def test_balance_export_preserves_three_and_zero_decimal_denominations(self):
         points = compute_series([

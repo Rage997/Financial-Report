@@ -140,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"note: {args.config} not found — using opening balance/networth = 0")
         digits = fraction_digits(currency)
         print(f"Opening {currency}: balance {ob:,.{digits}f} | networth {onw:,.{digits}f}\n")
+        if any(len({txn.account for txn in txns if txn.currency == code}) > 1 for code in _currencies(txns)):
+            print("Multiple accounts: account balances start at zero within each currency; source-wide openings are not allocated.\n")
         print(networth.render_table(points))
         if args.csv:
             networth.export_csv(points, args.csv)

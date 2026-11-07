@@ -35,7 +35,21 @@ Imports stay saved locally. Under **Local AI rules**, review and approve categor
 - Maximum upload size: **25 MiB**. JSON tables are limited to 200 columns and one million expanded cells.
 - OFX correction records and ambiguous text amounts are rejected rather than guessed. Use a finalized, structured statement export instead.
 - Currencies stay separate: **no exchange-rate conversion or combined currency totals**. Missing currency declarations produce a warning and default to CHF.
-- Uploaded statements show **cash flow starting at zero**, not your actual bank balance or total net worth. One dataset is analysed at a time.
+- Uploaded statements show **cash flow starting at zero**, not your actual bank balance or total net worth. Multiple sources can be analysed together; networth stays tied to one primary source.
+
+## Multiple sources
+
+Open a dataset, then use **Analysis sources** to include other saved statements.
+**Show source** filters activity; **Primary source** chooses the single source
+used for the dotted networth curve. Totals and comparison charts aggregate the
+shown sources in one currency, but account balances never merge across sources.
+Tables and filtered CSV exports retain source/account labels.
+
+Overlapping statements are **not deduplicated**. When a source has several
+accounts in one currency, account balances start at zero: a source-wide opening
+balance cannot be assigned to each account. This is not consolidated wealth.
+Additional sources last for this session; opening a dataset starts a new
+single-source selection. The primary keeps the existing saved-selection behavior.
 
 ## Recurring payments
 
@@ -44,8 +58,8 @@ same counterparty, keeping accounts, directions and currencies separate. It show
 cadence, average amount, latest amount change, last paid and estimated next due.
 Select a name to open its classification label's history.
 
-Detection uses the full file history; currency, direction and counterparty
-filters apply, but date/year/category filters do not reduce the sample. Irregular
+Detection uses each source's full history; source, currency, direction and counterparty
+filters apply, but date/year/category/anomaly filters do not reduce the sample. Irregular
 groups have no due-date estimate. Days past an estimate are measured against the
 last recorded activity in that account/currency, **not today**. Incomplete
 statements cannot prove a payment was missed; these are not confirmed obligations.

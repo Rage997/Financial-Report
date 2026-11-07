@@ -17,9 +17,9 @@ boundary, restart recovery, workspace race fixes and consistent CLI year filters
 These are existing capabilities, not outstanding roadmap tasks.
 
 `DEVELOPMENT.md` owns the ordered feature tracker and acceptance scope.
-Counterparty history (#12), recurring payments (#7), anomaly flags (#10) and
-period comparisons (#8) are implemented. The next delivery is **#11: multi-file
-analysis**; cosmetic/quality work remains planned.
+Counterparty history (#12), recurring payments (#7), anomaly flags (#10),
+period comparisons (#8) and multi-file analysis (#11) are implemented.
+The next delivery is **#13: dark mode, print/PDF and calendar view**.
 
 ## Implemented capabilities
 
@@ -152,18 +152,24 @@ analysis**; cosmetic/quality work remains planned.
   Non-date filters and refund accounting apply equally to both periods. Missing
   history stays unavailable; zero baselines have no percentage. Integer-minor-unit
   calculations have browser coverage and optional Node-backed regression tests.
+- **Multi-file analysis (#11)** — select saved sources, filter them and choose an
+  explicit primary for the networth estimate. Transaction balances stay separate
+  per file/account/currency; ambiguous multi-account openings are not allocated.
+  Tables/CSV/static charts preserve provenance. Source-local recurrence/anomalies
+  never borrow another bank's baseline. Added sources are session-only; opening
+  a dataset resets the set. Deletion, failed loads and stale responses cannot leave
+  excluded data in totals. Browser import/deletion/race and CLI/API checks passed.
 
-The networth curve is a flow-based estimate from the selected bank export. It
-does **not** include market gains/losses on investments, other banks, or
-other assets. Currencies are never converted or summed together; one dataset
-at a time (no multi-bank consolidation).
+The networth curve is a flow-based estimate from the **primary** bank export.
+It does **not** include market gains/losses, other banks or other assets. Aggregate
+activity across sources is not consolidated wealth. Currencies are never converted
+or summed together, and overlapping statements are not deduplicated.
 
 ## Remaining delivery
 
 | Order | Feature | Status |
 |---|---|---|
-| 1 | #11 Multi-file / multi-bank analysis | Planned |
-| 2 | #13 Dark mode, print/PDF and calendar | Planned |
+| 1 | #13 Dark mode, print/PDF and calendar | Planned |
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic
 import/categorization (#14) and optional reviewed rule creation (#9) are already

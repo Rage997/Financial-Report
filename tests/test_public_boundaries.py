@@ -147,6 +147,29 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
         (self.data / "linked.csv").symlink_to(self.private / "secret.csv")
         self.assertEqual(app.api_files()["files"], ["examples/demo.csv"])
 
+    async def test_sources_and_accounts_keep_provenance_and_independent_balances(self):
+        (self.data / "demo.csv").write_text(
+            "id;date;amount;direction;counterparty;payment_type;account;currency\n"
+            "1;2025-01-01;50;in;Example Employer;;A;CHF\n"
+            "2;2025-01-02;100;in;Example Employer;;B;CHF\n"
+            "3;2025-01-03;20;out;Shop;;A;CHF\n", encoding="utf-8")
+        (self.data / "second.csv").write_text(
+            "id;date;amount;direction;counterparty;payment_type;account;currency\n1;2025-01-01;7;in;Example Employer;;A;CHF\n",
+            encoding="utf-8")
+        config = self.root / "config.json"
+        config.write_text('{"opening_balance":1000,"opening_networth":2000,"currency":"CHF"}')
+        with patch.object(app, "CONFIG", config):
+            first = app.api_transactions("examples/demo.csv")
+            second = app.api_transactions("examples/second.csv")
+            networth = app.api_networth("examples/demo.csv")
+        self.assertEqual([(r["source"], r["account"], r["balance"]) for r in first["transactions"]],
+                         [("examples/demo.csv", "A", "50"), ("examples/demo.csv", "B", "100"),
+                          ("examples/demo.csv", "A", "30")])
+        self.assertEqual(first["opening_values"]["CHF"]["balance"], "0")
+        self.assertEqual(second["transactions"][0]["balance"], "1007")
+        self.assertEqual(second["transactions"][0]["source"], "examples/second.csv")
+        self.assertEqual(networth["points"][-1]["networth"], "2130")
+
     async def test_anomaly_api_keeps_earlier_history_and_decimal_thresholds(self):
         (self.data / "demo.csv").write_text(
             "date;amount;currency;counterparty\n"
