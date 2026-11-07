@@ -95,6 +95,13 @@ Charts/KPIs use all filtered transactions; the transaction table prints only its
 current page. The report records that page, sources, currency and filters.
 Printing does not change your theme preference or selection.
 
+The **Calendar** lets you browse months without changing the current date range.
+Select a day to set From/To to that date and clear the Year filter. Daily counts
+and incoming/outgoing/net totals follow source, currency and all non-date filters;
+they deliberately ignore date/year filters so the surrounding month stays visible.
+On small screens, select a day for its full totals below the compact grid.
+An empty day means no matching recorded activity, not proof of complete coverage.
+
 ## Local AI
 
 Choose `FINREPORT_AI_TIER` in `.env`:

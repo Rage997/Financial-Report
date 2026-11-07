@@ -38,6 +38,8 @@
 !static/appearance.css
 !static/print.js
 !static/print.css
+!static/calendar.js
+!static/calendar.css
 !static/imports.css
 !static/plotly.min.js
 !static/LICENSE.plotly.txt

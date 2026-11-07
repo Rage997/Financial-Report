@@ -15,10 +15,10 @@ listed rather than disappearing from the roadmap.
 | Completed | 10 | Anomaly flags | Implemented |
 | Completed | 8 | Period comparisons (MoM / YoY) | Implemented |
 | Completed | 11 | Multi-file (multi-bank) support | Implemented |
-| 1 | 13 | Dark mode, print/PDF and calendar view | Dark mode and print/PDF implemented; calendar planned |
+| Completed | 13 | Dark mode, print/PDF and calendar view | Implemented |
 
-Remaining delivery: **13**. A feature becomes
-implemented only after its user-facing path has been exercised.
+All features in this delivery tracker are implemented and their user-facing paths
+have been exercised. Completed scope and verification remain recorded below.
 Per-category monthly budgets and a cash-flow waterfall chart remain out of scope.
 
 ## Feature sketches
@@ -146,7 +146,7 @@ Verified in the browser with the demo dataset: table/chart/network drilldown,
 full-history totals under restrictive filters, clear/close/reload transitions,
 currency isolation and precision, missing months, and no-activity states.
 
-### 13 — Cosmetic & quality
+### 13 — Cosmetic & quality (implemented)
 
 **Dark mode implemented:** the header toggle persists an explicit local choice,
 otherwise follows the OS preference live. Denied browser storage falls back to
@@ -164,8 +164,17 @@ Native browser printing also scales the SVGs. Real Chromium PDFs were checked
 for unclipped charts/tables, page scope, three-decimal amounts and dark-mode
 restoration. No server upload, PDF dependency or external service is involved.
 
-**Still planned:** a calendar month view where clicking a day filters
-transactions to that date.
+**Calendar implemented:** a Monday-first month grid shows per-day transaction
+counts and integer-minor-unit incoming/outgoing/net totals. Month navigation
+does not change filters; selecting a day sets From/To and clears a stale year
+filter. Source, currency and non-date filters apply to calendar totals; date/year
+filters do not collapse the surrounding month. Empty days remain selectable.
+Mobile shows compact counts with full selected-day totals below; keyboard focus
+survives selection, and light/dark and printed layouts remain readable.
+Browser checks covered keyboard/day selection, empty days, refunds, combined
+filters, anomaly-only activity, source/currency isolation, three-decimal amounts,
+leap February, year boundaries and PDF output. Node-backed regressions cover
+Gregorian month lengths, UTC/DST independence, navigation limits and exact sums.
 
 ## Ground rules for future work
 

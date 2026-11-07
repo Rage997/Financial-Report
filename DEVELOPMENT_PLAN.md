@@ -19,7 +19,8 @@ These are existing capabilities, not outstanding roadmap tasks.
 `DEVELOPMENT.md` owns the ordered feature tracker and acceptance scope.
 Counterparty history (#12), recurring payments (#7), anomaly flags (#10),
 period comparisons (#8) and multi-file analysis (#11) are implemented.
-Dark mode and print/PDF (#13) are implemented; **calendar view** remains next.
+Dark mode, print/PDF and calendar view (#13) are implemented. No features remain
+outstanding within the agreed delivery scope.
 
 ## Implemented capabilities
 
@@ -168,17 +169,23 @@ Dark mode and print/PDF (#13) are implemented; **calendar view** remains next.
   Prints all filtered chart/KPI data and only the current transaction page;
   restores theme, filters and pagination afterward. Verified the real button
   lifecycle and generated Chromium PDFs, including three-decimal currency.
+- **Calendar (#13)** — browse months independently of date/year filters, with
+  source/currency/detail-filtered daily counts and exact incoming/outgoing/net
+  totals. Selecting a day filters transactions and clears the year restriction.
+  Empty dates, keyboard selection, compact mobile details, light/dark themes
+  and printed six-week months are supported. Browser scenarios and optional
+  Node-backed date/precision/timezone regression tests passed.
 
 The networth curve is a flow-based estimate from the **primary** bank export.
 It does **not** include market gains/losses, other banks or other assets. Aggregate
 activity across sources is not consolidated wealth. Currencies are never converted
 or summed together, and overlapping statements are not deduplicated.
 
-## Remaining delivery
+## Delivery complete
 
-| Order | Feature | Status |
-|---|---|---|
-| 1 | #13 Calendar view (dark mode and print/PDF implemented) | Planned |
+All entries in `DEVELOPMENT.md` are implemented, including all three #13 parts.
+Final regression run: **190 tests passed**. User-facing checks also exercised
+the real CLI, API, browser interactions and generated print/PDF output.
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic
 import/categorization (#14) and optional reviewed rule creation (#9) are already
