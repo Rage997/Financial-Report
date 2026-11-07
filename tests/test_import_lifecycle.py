@@ -50,27 +50,44 @@ class ImportLifecycleTests(unittest.TestCase):
                 pass
 
             def do_GET(self):
-                body = json.dumps({"models": [{"name": "test-model"}]}).encode()
+                if self.path == "/health":
+                    body = json.dumps({"status": "ok"}).encode()
+                else:
+                    body = json.dumps({"object": "list", "data": [
+                        {"id": "test-model", "object": "model", "aliases": []}]}).encode()
                 self.send_response(200)
-                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(body)
 
             def do_POST(self):
                 self.rfile.read(int(self.headers["Content-Length"]))
                 self.send_response(200)
-                self.send_header("Content-Type", "application/x-ndjson")
+                self.send_header("Content-Type", "text/event-stream")
                 self.end_headers()
-                first = {"message": {"content": "{"}, "done": False}
-                self.wfile.write(json.dumps(first).encode() + b"\n")
+
+                def sse(payload):
+                    return ("data: " + json.dumps(payload)).encode() + b"\n"
+
+                first = {"id": "chatcmpl-test", "object": "chat.completion.chunk",
+                         "choices": [{"index": 0,
+                                      "delta": {"role": "assistant", "content": "{"},
+                                      "finish_reason": None}]}
+                self.wfile.write(sse(first))
                 self.wfile.flush()
                 entered.set()
                 release.wait(10)
-                rest = {'message': {'content': '"suggestions":[{"id":0,"category":"expense",'
+                rest = {"id": "chatcmpl-test", "object": "chat.completion.chunk",
+                        "choices": [{"index": 0, "delta": {"content":
+                        '"suggestions":[{"id":0,"category":"expense",'
                         '"label":"Merchant","reason":"Retail purchase"}]}'},
-                        'done': True, 'done_reason': 'stop'}
+                        "finish_reason": None}]}
+                stop = {"id": "chatcmpl-test", "object": "chat.completion.chunk",
+                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
                 try:
-                    self.wfile.write(json.dumps(rest).encode() + b"\n")
+                    self.wfile.write(sse(rest))
+                    self.wfile.write(sse(stop))
+                    self.wfile.write(b"data: [DONE]\n")
                 except (BrokenPipeError, ConnectionResetError):
                     pass
 

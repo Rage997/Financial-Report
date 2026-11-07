@@ -25,7 +25,6 @@ from __future__ import annotations
 import csv
 import io
 import json
-import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -33,7 +32,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from .ai_rules import ModelError, model_json, status
+from .ai_rules import ModelError, ModelTruncated, model_json, status
 from .currency import (
     CURRENCY_SYMBOLS,
     SUPPORTED_CURRENCIES,
@@ -316,24 +315,26 @@ def _model_ready(ai_url: str, ai_model: str) -> None:
 
 
 def _ai_chat(ai_url: str, ai_model: str, system: str, user: str, schema: dict,
-             *, timeout: float = 600) -> dict:
+             schema_name: str, *, timeout: float = 600) -> dict:
     try:
-        response = model_json(ai_url, "/api/chat", {
-            "model": ai_model, "stream": False, "format": schema,
+        response = model_json(ai_url, "/v1/chat/completions", {
+            "model": ai_model,
+            "temperature": 0,
+            "max_tokens": 2048,
+            "response_format": {"type": "json_schema",
+                                "json_schema": {"name": schema_name, "strict": True,
+                                                "schema": schema}},
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": user}],
-            "options": {"temperature": 0, "num_ctx": 4096, "num_predict": 2048,
-                        "num_thread": min(4, os.cpu_count() or 1)},
-            "keep_alive": "30s",
         }, timeout=timeout)
-    except ModelError as exc:
-        raise NormalizationError(str(exc)) from exc
-    if response.get("done") is not True or response.get("done_reason") == "length":
+    except ModelTruncated as exc:
         raise NormalizationError(
             "The local model output was truncated, so no transactions were saved. "
-            "Retry the import or use a larger local model.")
+            "Retry the import or use a larger local model.") from exc
+    except ModelError as exc:
+        raise NormalizationError(str(exc)) from exc
     try:
-        parsed = json.loads(response["message"]["content"])
+        parsed = json.loads(response["choices"][0]["message"]["content"])
     except (KeyError, TypeError, ValueError) as exc:
         raise NormalizationError(
             "The local model returned invalid JSON; nothing was saved. "
@@ -510,7 +511,7 @@ def _extract_with_ai(ai_url: str, ai_model: str, text: str, *, context: str,
                          "statement_currency": currency_by_line.get(line, default_currency)
                          if currency_by_line is not None else default_currency}
                         for line, body in batch],
-        }), _EXTRACT_SCHEMA)
+        }), _EXTRACT_SCHEMA, "extract_rows")
         rows = response.get("rows")
         if not isinstance(rows, list) or len(rows) != len(batch):
             raise NormalizationError(f"{context}: the model omitted or added source records.")
@@ -953,7 +954,7 @@ def _map_columns_with_ai(ai_url: str, ai_model: str, headers: list[str],
               "columns, set debit_amount and credit_amount and leave amount "
               "null. Never invent columns that are not listed.")
     user = json.dumps({"headers": headers, "sample_rows": samples})
-    parsed = _ai_chat(ai_url, ai_model, system, user, _COLUMN_SCHEMA)
+    parsed = _ai_chat(ai_url, ai_model, system, user, _COLUMN_SCHEMA, "column_mapping")
     columns = parsed.get("columns")
     if not isinstance(columns, dict):
         raise NormalizationError(

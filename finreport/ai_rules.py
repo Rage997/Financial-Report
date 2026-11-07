@@ -1,4 +1,4 @@
-"""Local Ollama suggestions, output validation and reviewed-rule storage."""
+"""Local llama.cpp suggestions, output validation and reviewed-rule storage."""
 from __future__ import annotations
 
 import fcntl
@@ -34,13 +34,24 @@ uncategorized: insufficient evidence. Do not invent facts about unfamiliar names
 Return one JSON result per input id, with a brief label and reason under 160 characters.
 These are provisional suggestions for human review."""
 
+CHAT_ENDPOINT = "/v1/chat/completions"
+MAX_RESPONSE_BYTES = 1_000_000
+
 
 class ModelError(Exception):
     """Unavailable local inference or invalid model output."""
 
+    def __init__(self, message, *, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
+
 
 class ModelTimeout(ModelError):
     """The local worker did not respond before the request deadline."""
+
+
+class ModelTruncated(ModelError):
+    """The local model stopped before producing a complete result."""
 
 
 class StaleRules(Exception):
@@ -103,10 +114,10 @@ def _interrupt(connection):
 def local_url(url: str) -> str:
     parts = urlsplit(url)
     if (parts.scheme != "http" or parts.hostname not in
-            {"localhost", "127.0.0.1", "::1", "ollama", "host.docker.internal"}
+            {"localhost", "127.0.0.1", "::1", "llama", "host.docker.internal"}
             or parts.username or parts.password or parts.query or parts.fragment
             or parts.path not in ("", "/")):
-        raise ModelError("FINREPORT_AI_URL must be a direct local Ollama HTTP endpoint.")
+        raise ModelError("FINREPORT_AI_URL must be a direct local llama-server HTTP endpoint.")
     try:
         parts.port
     except ValueError as exc:
@@ -116,14 +127,20 @@ def local_url(url: str) -> str:
 
 def model_json(url: str, endpoint: str, payload: dict | None = None,
                timeout: float = 5) -> dict:
+    """Talk to the local llama-server over its OpenAI-compatible API.
+
+    GET endpoints return their parsed JSON body. The chat endpoint streams
+    server-sent events and returns one assembled chat completion; only a
+    complete stop result is returned.
+    """
     control = _INFERENCE.get() or InferenceControl(None)
     control.check_cancelled()
     if not control.allow_ai:
         raise InferenceRequired()
+    if endpoint not in ("/health", "/v1/models", CHAT_ENDPOINT):
+        raise ModelError("Use a direct local llama-server API path.")
     address = urlsplit(local_url(url))
-    if not endpoint.startswith("/") or endpoint.startswith("//"):
-        raise ModelError("Use a direct local Ollama API path.")
-    chat = endpoint == "/api/chat" and payload is not None
+    chat = endpoint == CHAT_ENDPOINT and payload is not None
     locked = False
     if chat and control.generation_lock is not None:
         control.report("waiting")
@@ -151,67 +168,41 @@ def model_json(url: str, endpoint: str, payload: dict | None = None,
         connection.sock.settimeout(timeout)
         if chat:
             control.report("loading")
-            # One shared policy for extraction and classification: avoid
-            # reloading weights while the user reviews or uploads another file.
-            payload = {**payload, "stream": True, "keep_alive": "5m"}
+            payload = {**payload, "stream": True}
         body = json.dumps(payload).encode() if payload is not None else None
         connection.request("POST" if body is not None else "GET", endpoint, body,
                            {"Content-Type": "application/json"})
         response = connection.getresponse()
         if 300 <= response.status < 400:
-            raise ModelError("Ollama redirects are not allowed; use a direct local endpoint.")
+            raise ModelError("Redirects are not allowed; use a direct local endpoint.")
         if response.status != 200:
-            raise ModelError(f"Ollama returned HTTP {response.status}. Check the model and local worker logs.")
+            raise ModelError(_http_error_message(response), status_code=response.status)
         if not chat:
-            raw = response.read(1_000_001)
-            if len(raw) > 1_000_000:
-                raise ModelError("Ollama response exceeded the size limit.")
+            raw = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_RESPONSE_BYTES:
+                raise ModelError("The local model response exceeded the size limit.")
             result = json.loads(raw)
-        else:
-            fragments, size, chars, result = [], 0, 0, None
-            while True:
-                control.check_cancelled()
-                raw = response.readline(1_000_001 - size)
-                size += len(raw)
-                if size > 1_000_000:
-                    raise ModelError("Ollama response exceeded the size limit.")
-                if not raw:
-                    raise ModelError("Ollama closed an incomplete response.")
-                chunk = json.loads(raw)
-                if not isinstance(chunk, dict) or "error" in chunk:
-                    raise ModelError("Ollama returned an invalid response. Check the local worker logs.")
-                message = chunk.get("message", {})
-                if not isinstance(message, dict):
-                    raise ModelError("Ollama returned malformed response text.")
-                fragment = message.get("content", "")
-                if not isinstance(fragment, str):
-                    raise ModelError("Ollama returned malformed response text.")
-                fragments.append(fragment)
-                chars += len(fragment)
-                if fragment:
-                    control.report("generating", chars)
-                if chunk.get("done") is True:
-                    result = {**chunk, "message": {**chunk.get("message", {}), "content": "".join(fragments)}}
-                    break
+            if not isinstance(result, dict):
+                raise ModelError("The local model returned an invalid response.")
+            return result
+        result = _read_chat_stream(response, control)
         control.check_cancelled()
         if expired.is_set():
             raise TimeoutError()
-        if not isinstance(result, dict) or "error" in result:
-            raise ModelError("Ollama returned an invalid response. Check the local worker logs.")
         return result
     except (OSError, http.client.HTTPException, ValueError, TypeError, ModelError) as exc:
         control.check_cancelled()
         if expired.is_set() or isinstance(exc, TimeoutError):
             raise ModelTimeout(
-                f"Local Ollama timed out after {timeout:g} seconds. No rules were saved. "
+                f"Local model timed out after {timeout:g} seconds. No data was saved. "
                 "Free system memory or choose a smaller local model."
             ) from exc
         if isinstance(exc, ModelError):
             raise
         if isinstance(exc, (ValueError, TypeError)):
-            raise ModelError("Ollama returned malformed JSON.") from exc
+            raise ModelError("The local model returned malformed JSON.") from exc
         raise ModelError(
-            "Cannot connect to local Ollama. Check that the worker is running "
+            "Cannot connect to the local model. Check that the llama service is running "
             "and FINREPORT_AI_URL points to it."
         ) from exc
     finally:
@@ -230,21 +221,123 @@ def model_json(url: str, endpoint: str, payload: dict | None = None,
             control.generation_lock.release()
 
 
+def _http_error_message(response) -> str:
+    try:
+        data = json.loads(response.read(4096))
+        error = data.get("error") if isinstance(data, dict) else None
+        message = error.get("message") if isinstance(error, dict) else None
+        if isinstance(message, str) and message.strip():
+            return f"The local model returned HTTP {response.status}: {message.strip()[:200]}."
+    except (OSError, ValueError):
+        pass
+    return f"The local model returned HTTP {response.status}. Check the llama service logs."
+
+
+def _read_chat_stream(response, control) -> dict:
+    """Assemble the SSE chat stream into one OpenAI chat completion.
+
+    Only a complete stop result is returned. A truncated (length) finish,
+    any other finish, or a stream that ends early is not a success.
+    """
+    fragments, size, chars = [], 0, 0
+    meta = {"id": None, "created": None, "model": None}
+    finish_reason, usage = None, None
+    while True:
+        control.check_cancelled()
+        raw = response.readline(MAX_RESPONSE_BYTES + 1 - size)
+        size += len(raw)
+        if size > MAX_RESPONSE_BYTES:
+            raise ModelError("The local model response exceeded the size limit.")
+        if not raw:
+            if finish_reason != "stop":
+                raise ModelTruncated("The local model closed the stream before completing the response.")
+            break
+        try:
+            line = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ModelError("The local model returned malformed response text.") from exc
+        line = line.rstrip("\r\n")
+        if not line or line.startswith(":"):
+            continue  # event boundary or keep-alive comment
+        if not line.startswith("data:"):
+            continue  # event:/id:/retry: fields are not used
+        data = line[5:]
+        if data.startswith(" "):
+            data = data[1:]
+        if data == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data)
+        except ValueError as exc:
+            raise ModelError("The local model returned malformed response text.") from exc
+        if not isinstance(chunk, dict):
+            raise ModelError("The local model returned malformed response text.")
+        for key in ("id", "created", "model"):
+            if meta[key] is None:
+                meta[key] = chunk.get(key)
+        if isinstance(chunk.get("usage"), dict):
+            usage = chunk["usage"]
+        choices = chunk.get("choices")
+        if choices is None:
+            continue
+        if not isinstance(choices, list):
+            raise ModelError("The local model returned malformed response text.")
+        for choice in choices:
+            if not isinstance(choice, dict):
+                raise ModelError("The local model returned malformed response text.")
+            delta = choice.get("delta")
+            if isinstance(delta, dict):
+                fragment = delta.get("content")
+                if isinstance(fragment, str):
+                    fragments.append(fragment)
+                    chars += len(fragment)
+                    if fragment:
+                        control.report("generating", chars)
+            if choice.get("finish_reason") is not None:
+                finish_reason = choice["finish_reason"]
+    if finish_reason is None:
+        raise ModelTruncated("The local model ended the stream without completing the response.")
+    if finish_reason != "stop":
+        if finish_reason == "length":
+            raise ModelTruncated("The local model output was truncated before it finished; the result was discarded.")
+        raise ModelError(f"The local model ended with {finish_reason!r}; the result was discarded.")
+    return {
+        "id": meta["id"],
+        "object": "chat.completion",
+        "created": meta["created"],
+        "model": meta["model"],
+        "choices": [{"index": 0,
+                     "message": {"role": "assistant", "content": "".join(fragments)},
+                     "finish_reason": "stop"}],
+        "usage": usage,
+    }
+
+
 def status(url: str, model: str) -> dict:
     result = {"enabled": bool(url), "available": False, "model": model}
     if not url:
         return {**result, "message": "Local AI is disabled. Start Docker Compose or set FINREPORT_AI_URL."}
-    if not model or "cloud" in model.lower():
-        return {**result, "message": "Choose a locally downloaded model, not a cloud model."}
+    if not model:
+        return {**result, "message": "Choose a local model for the selected tier."}
     try:
-        data = model_json(url, "/api/tags")
-        names = {item.get("name") for item in data.get("models", []) if isinstance(item, dict)}
-        if model not in names and model + ":latest" not in names:
-            return {**result, "message": f"Model {model} is not installed. Run the Compose model-init service."}
+        health = model_json(url, "/health")
+        if health.get("status") != "ok":
+            return {**result, "message": "The local model is not ready. Check the llama service in Docker Compose."}
+    except ModelError as exc:
+        if exc.status_code == 503:
+            return {**result, "message": "The local model is still loading; retry in a moment."}
+        return {**result, "message": str(exc)}
+    try:
+        data = model_json(url, "/v1/models")
     except ModelError as exc:
         return {**result, "message": str(exc)}
-    return {**result, "available": True,
-            "message": "Local model installed. It loads on demand; suggestions require your approval."}
+    for item in data.get("data", []):
+        if not isinstance(item, dict):
+            continue
+        if item.get("id") == model or model in (item.get("aliases") or []):
+            return {**result, "available": True,
+                    "message": "Local model ready. Suggestions require your approval."}
+    return {**result, "message": f"Model {model} is not loaded. Start the llama service in Docker Compose."}
 
 
 def effective_rules(base: Path, approved: Path) -> list[Rule]:
@@ -317,27 +410,22 @@ def _suggestion(url: str, model: str, row: dict) -> dict:
                           "label": {"type": "string", "minLength": 1, "maxLength": 80},
                           "reason": {"type": "string", "minLength": 1, "maxLength": 160}}}}}}
     prompt = json.dumps({"counterparties": [record]}, ensure_ascii=False, separators=(",", ":"))
-    response_tokens = 640
-    # UTF-8 bytes bound tokens conservatively; ordinary names need only 2k,
-    # while larger summaries retain room for a complete validated response.
-    prompt_bytes = len(SYSTEM_PROMPT.encode("utf-8")) + len(prompt.encode("utf-8"))
-    context_size = 2048
-    while context_size < prompt_bytes + response_tokens + 128:
-        context_size *= 2
-    response = model_json(url, "/api/chat", {
-        "model": model, "stream": False, "format": schema,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT},
-                     {"role": "user", "content": prompt}],
-        "options": {"temperature": 0, "num_ctx": context_size, "num_predict": response_tokens,
-                    "num_thread": min(4, os.cpu_count() or 1)},
-        "keep_alive": "5m",
-    }, timeout=600)
     try:
-        if response.get("done") is not True or response.get("done_reason") == "length":
-            raise ValueError("incomplete generation")
-        parsed = json.loads(response["message"]["content"])
+        response = model_json(url, CHAT_ENDPOINT, {
+            "model": model,
+            "temperature": 0,
+            "max_tokens": 640,
+            "response_format": {"type": "json_schema",
+                                "json_schema": {"name": "suggestions", "strict": True,
+                                                "schema": schema}},
+            "messages": [{"role": "system", "content": SYSTEM_PROMPT},
+                         {"role": "user", "content": prompt}],
+        }, timeout=600)
+        parsed = json.loads(response["choices"][0]["message"]["content"])
         return validate_suggestions(parsed, [row])[0]
-    except (KeyError, TypeError, ValueError) as exc:
+    except ModelTimeout:
+        raise
+    except (ModelError, KeyError, TypeError, ValueError) as exc:
         raise ModelError("The local model returned incomplete or invalid suggestions. No rules were saved; retry or review this counterparty manually.") from exc
 
 

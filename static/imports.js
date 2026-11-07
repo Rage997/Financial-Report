@@ -24,7 +24,7 @@ function renderSupported(){
   el.fmtList.replaceChildren(...workspace.supported_extensions.map(ext=>node('span','fmt',ext)));
   el.headerImport.accept=el.pickFileInput.accept=workspace.supported_extensions.join(',');
   const ai=workspace.ai||{};
-  el.disclosure.textContent='Files stay on the app host. Recognized tables are parsed directly; unfamiliar layouts and text use local Ollama ('+(ai.model||'not configured')+', '+(ai.tier||'')+'). Existing rules take priority. AI fills remaining categories provisionally—review important transactions. Originals and normalized data are saved privately.';
+  el.disclosure.textContent='Files stay on the app host. Recognized tables are parsed directly; unfamiliar layouts and text use local llama.cpp ('+(ai.model||'not configured')+', '+(ai.tier||'')+'). Existing rules take priority. AI fills remaining categories provisionally—review important transactions. Originals and normalized data are saved privately.';
 }
 function renderSaved(){
   const names=new Map((workspace.datasets||[]).map(d=>[d.file,d.name]));
@@ -43,7 +43,7 @@ function renderSaved(){
   }else el.continueBtn.hidden=true;
 }
 function jobStatusText(j){
-  const phases={waiting:'Waiting for the local model',loading:'Loading model / reading input',generating:'Generating response · '+j.ai_chars+' characters received'};
+  const phases={waiting:'Waiting for the local model',loading:'Processing input',generating:'Generating response · '+j.ai_chars+' characters received'};
   const parts=[j.stage||'',duration(j.elapsed_seconds)+' elapsed'];
   if(j.ai_phase)parts.push(phases[j.ai_phase]||j.ai_phase);
   if(j.total>0&&!['waiting_ai','cancelling'].includes(j.status))parts.push(j.completed+' of '+j.total+' completed');

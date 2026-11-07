@@ -34,8 +34,8 @@ async function refreshStatus(){
     statusInfo=s;
     el.dot.className='ai-dot '+(s.enabled&&s.available?'ok':'bad');
     if(!s.enabled){el.statusLine.textContent='Local AI is disabled (FINREPORT_AI_URL not set). The dashboard works normally without it.';el.suggest.disabled=true;}
-    else if(!s.available){el.statusLine.textContent='Local model unavailable — '+(s.message||'check the ollama container in Docker Compose')+'. The dashboard works normally without it.';el.suggest.disabled=true;}
-    else{el.statusLine.textContent='Local model installed: '+s.model+' · loads on demand; suggestions require your review.';}
+    else if(!s.available){el.statusLine.textContent='Local model unavailable — '+(s.message||'check the llama container in Docker Compose')+'. The dashboard works normally without it.';el.suggest.disabled=true;}
+    else{el.statusLine.textContent='Local llama.cpp model ready: '+s.model+' · suggestions require your review.';}
   }catch(e){
     statusInfo=null;
     el.dot.className='ai-dot bad';

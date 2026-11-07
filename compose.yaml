@@ -8,11 +8,11 @@ services:
     user: "${FINREPORT_UID:-1000}:${FINREPORT_GID:-1000}"
     environment:
       FINREPORT_PROFILE: ${FINREPORT_PROFILE:-demo}
-      FINREPORT_AI_URL: http://ollama:11434
+      FINREPORT_AI_URL: http://llama:8080
       FINREPORT_AI_TIER: ${FINREPORT_AI_TIER-low}
-      FINREPORT_AI_MODEL_LOW: ${FINREPORT_AI_MODEL_LOW-qwen2.5:1.5b}
-      FINREPORT_AI_MODEL_MEDIUM: ${FINREPORT_AI_MODEL_MEDIUM-qwen2.5:7b-instruct-q3_K_M}
-      FINREPORT_AI_MODEL_HIGH: ${FINREPORT_AI_MODEL_HIGH-qwen2.5:14b-instruct-q3_K_L}
+      FINREPORT_AI_MODEL_LOW: ${FINREPORT_AI_MODEL_LOW-qwen2.5-1.5b-instruct-q4_k_m.gguf}
+      FINREPORT_AI_MODEL_MEDIUM: ${FINREPORT_AI_MODEL_MEDIUM-Qwen2.5-7B-Instruct-Q3_K_M.gguf}
+      FINREPORT_AI_MODEL_HIGH: ${FINREPORT_AI_MODEL_HIGH-Qwen2.5-14B-Instruct-Q3_K_L.gguf}
     ports:
       - "127.0.0.1:${FINREPORT_PORT:-8010}:8010"
     volumes:
@@ -22,7 +22,7 @@ services:
       - web
       - inference
     depends_on:
-      ollama:
+      llama:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8010/api/files',timeout=2)"]
@@ -32,41 +32,76 @@ services:
       start_period: 15s
     restart: unless-stopped
 
-  ollama:
-    image: ollama/ollama:0.40.7
+  # llama.cpp CPU server (official image, build b11960 = v0.8.0, commit
+  # 8642541b255bfb5dc39cd351a178be09013a55d6; linux amd64/arm64). Serves the
+  # OpenAI-compatible API on the internal-only network; no ports are
+  # published. The selected model is mounted read-only, aliased to its
+  # filename, and stays loaded for the container's lifetime.
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server-b11960
     environment:
-      OLLAMA_NO_CLOUD: "1"
-      OLLAMA_NUM_PARALLEL: "1"
-      OLLAMA_MAX_LOADED_MODELS: "1"
+      FINREPORT_AI_TIER: ${FINREPORT_AI_TIER-low}
+      FINREPORT_AI_MODEL_LOW: ${FINREPORT_AI_MODEL_LOW-qwen2.5-1.5b-instruct-q4_k_m.gguf}
+      FINREPORT_AI_MODEL_MEDIUM: ${FINREPORT_AI_MODEL_MEDIUM-Qwen2.5-7B-Instruct-Q3_K_M.gguf}
+      FINREPORT_AI_MODEL_HIGH: ${FINREPORT_AI_MODEL_HIGH-Qwen2.5-14B-Instruct-Q3_K_L.gguf}
     volumes:
-      - ollama-models:/root/.ollama
+      - llama-models:/models:ro
     networks:
       - inference
     depends_on:
       model-init:
         condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        case "$$FINREPORT_AI_TIER" in
+          low) model="$$FINREPORT_AI_MODEL_LOW" ;;
+          medium) model="$$FINREPORT_AI_MODEL_MEDIUM" ;;
+          high) model="$$FINREPORT_AI_MODEL_HIGH" ;;
+          *) echo "FINREPORT_AI_TIER must be low, medium or high" >&2; exit 1 ;;
+        esac
+        case "$$model" in
+          ""|-*|*[!A-Za-z0-9._-]*) echo "Each tier must name a single GGUF filename" >&2; exit 1 ;;
+          *.gguf) : ;;
+          *) echo "Each tier must name a .gguf file" >&2; exit 1 ;;
+        esac
+        exec /app/llama-server \
+          --model "/models/$$model" \
+          --alias "$$model" \
+          --host 0.0.0.0 \
+          --port 8080 \
+          --ctx-size 8192 \
+          --parallel 1 \
+          --threads 4 \
+          --threads-batch 4 \
+          --no-context-shift \
+          --no-webui \
+          --cors-origins localhost
     healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 10s
       retries: 30
-      start_period: 10s
+      start_period: 30s
     restart: unless-stopped
 
   # Only this one-off process can download models, and it downloads the
-  # selected tier only. It never mounts financial data. A private temporary
-  # daemon writes the weights before the runtime daemon starts.
+  # selected tier only. It never mounts financial data. The download is
+  # written to a temporary name and renamed into place, so a failed run
+  # never leaves a partial GGUF behind.
   model-init:
-    image: ollama/ollama:0.40.7
+    image: ghcr.io/ggml-org/llama.cpp:server-b11960
     environment:
-      OLLAMA_HOST: 127.0.0.1:11434
-      OLLAMA_NO_CLOUD: "1"
       FINREPORT_AI_TIER: ${FINREPORT_AI_TIER-low}
-      FINREPORT_AI_MODEL_LOW: ${FINREPORT_AI_MODEL_LOW-qwen2.5:1.5b}
-      FINREPORT_AI_MODEL_MEDIUM: ${FINREPORT_AI_MODEL_MEDIUM-qwen2.5:7b-instruct-q3_K_M}
-      FINREPORT_AI_MODEL_HIGH: ${FINREPORT_AI_MODEL_HIGH-qwen2.5:14b-instruct-q3_K_L}
+      FINREPORT_AI_MODEL_LOW: ${FINREPORT_AI_MODEL_LOW-qwen2.5-1.5b-instruct-q4_k_m.gguf}
+      FINREPORT_AI_MODEL_MEDIUM: ${FINREPORT_AI_MODEL_MEDIUM-Qwen2.5-7B-Instruct-Q3_K_M.gguf}
+      FINREPORT_AI_MODEL_HIGH: ${FINREPORT_AI_MODEL_HIGH-Qwen2.5-14B-Instruct-Q3_K_L.gguf}
+      FINREPORT_AI_MODEL_URL_LOW: ${FINREPORT_AI_MODEL_URL_LOW-https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf}
+      FINREPORT_AI_MODEL_URL_MEDIUM: ${FINREPORT_AI_MODEL_URL_MEDIUM-https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/8911e8a47f92bac19d6f5c64a2e2095bd2f7d031/Qwen2.5-7B-Instruct-Q3_K_M.gguf}
+      FINREPORT_AI_MODEL_URL_HIGH: ${FINREPORT_AI_MODEL_URL_HIGH-https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/05244aa5d871c661c80082a15d3bce44714d068d/Qwen2.5-14B-Instruct-Q3_K_L.gguf}
     volumes:
-      - ollama-models:/root/.ollama
+      - llama-models:/models
     networks:
       - model-download
     entrypoint: ["/bin/sh", "-c"]
@@ -75,33 +110,36 @@ services:
         set -eu
         for value in "$$FINREPORT_AI_MODEL_LOW" "$$FINREPORT_AI_MODEL_MEDIUM" "$$FINREPORT_AI_MODEL_HIGH"; do
           case "$$value" in
-            ""|-*|*[[:space:]]*) echo "Each tier must name a single Ollama model" >&2; exit 1 ;;
+            ""|-*|*[!A-Za-z0-9._-]*) echo "Each tier must name a single GGUF filename" >&2; exit 1 ;;
+          esac
+          case "$$value" in
+            *.gguf) : ;;
+            *) echo "Each tier must name a .gguf file" >&2; exit 1 ;;
           esac
         done
         case "$$FINREPORT_AI_TIER" in
-          low) model="$$FINREPORT_AI_MODEL_LOW" ;;
-          medium) model="$$FINREPORT_AI_MODEL_MEDIUM" ;;
-          high) model="$$FINREPORT_AI_MODEL_HIGH" ;;
+          low) model="$$FINREPORT_AI_MODEL_LOW"; url="$$FINREPORT_AI_MODEL_URL_LOW" ;;
+          medium) model="$$FINREPORT_AI_MODEL_MEDIUM"; url="$$FINREPORT_AI_MODEL_URL_MEDIUM" ;;
+          high) model="$$FINREPORT_AI_MODEL_HIGH"; url="$$FINREPORT_AI_MODEL_URL_HIGH" ;;
           *) echo "FINREPORT_AI_TIER must be low, medium or high" >&2; exit 1 ;;
         esac
-        ollama serve &
-        pid=$$!
-        trap 'kill "$$pid" 2>/dev/null || true' EXIT INT TERM
-        attempts=0
-        until ollama list >/dev/null 2>&1; do
-          kill -0 "$$pid"
-          attempts=$$((attempts + 1))
-          if [ "$$attempts" -ge 60 ]; then echo 'Model initializer did not start'; exit 1; fi
-          sleep 1
-        done
-        if ! ollama show "$$model" >/dev/null 2>&1; then
-          timeout 3600 ollama pull "$$model"
+        case "$$url" in
+          ""|*[[:space:]]*) echo "The selected tier needs a model download URL" >&2; exit 1 ;;
+          http://*|https://*) : ;;
+          *) echo "The model download URL must be http(s)" >&2; exit 1 ;;
+        esac
+        if [ -f "/models/$$model" ]; then
+          echo "Model already present: $$model"
+          exit 0
         fi
-        ollama show "$$model"
+        trap 'rm -f "/models/$$model.part"' EXIT INT TERM
+        timeout 3600 curl -fL -o "/models/$$model.part" "$$url"
+        mv "/models/$$model.part" "/models/$$model"
+        echo "Downloaded $$model"
     restart: "no"
 
 volumes:
-  ollama-models:
+  llama-models:
 
 networks:
   web:

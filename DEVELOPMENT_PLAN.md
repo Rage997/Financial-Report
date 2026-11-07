@@ -64,30 +64,32 @@ Analyse imported machine-readable bank statements and legacy BPS CSV exports:
   click-to-drill; scrollable tables with sticky headers, sorting, pagination,
   and filtered CSV export.
 - **Automatic local classification** — authored/reviewed/type rules run first;
-  remaining counterparties each get an isolated Ollama request. Decisions are cached
+  remaining counterparties each get an isolated llama.cpp request. Decisions are cached
   by exact name, direction/payment-type context and model, then snapshotted per
   dataset. Automatic transfer/investment proposals require ownership confirmation
   and otherwise remain uncategorized. Categories remain provisional.
   Deterministic imports and AI jobs use separate queues; only model requests are
   serialized. Streaming progress reports elapsed time and generated characters,
   with cancellation that interrupts inference and prevents late result publication.
-- **Local AI rule assistant** — Ollama suggests classifications for unruled
+- **Local AI rule assistant** — llama.cpp suggests classifications for unruled
   counterparties in batches of up to 12. Review/edit categories and labels,
   explicitly approve, then persist profile-isolated rules under `private/ai/`.
   Existing rules keep priority; suggestions alone never change reports.
   Structured-output validation, stale-review rejection and atomic writes protect
   the rule boundary. CLI commands can include reviewed rules via `--approved-rules`.
-- **Docker Compose** — non-root app, persistent Ollama worker and one-off model
-  initializer. The initializer downloads weights without mounting financial
-  data; the inference worker is on an internal-only network. The app additionally
+- **Docker Compose** — non-root app, resident llama.cpp worker and one-off GGUF
+  downloader. The downloader has no financial-data mount; the inference worker
+  uses an internal-only network and a read-only model volume. The app additionally
   joins a web bridge to publish its localhost port. Public source allowlists
   exclude private data from images and release ZIPs.
-  `.env` selects low/medium/high models (approximately 1/4/8 GB of weights,
+  `.env` selects low/medium/high models (approximately 1.1/3.8/7.9 GB of weights,
   not memory caps), identically for native and Compose runs. Only the selected
-  model is initialized. Consecutive requests reuse weights for five minutes idle
-  before unloading; prompt-sized contexts and output budgets avoid excess work.
-  Generation timeouts remain distinct from connection failures.
-  CPU inference uses at most four threads rather than every virtual CPU.
+  model is downloaded and loaded. The worker uses one slot, an 8,192-token context
+  without context shifting, and four threads for CPU generation and prompt processing.
+  The client uses schema-constrained `/v1/chat/completions` with SSE streaming;
+  health and model-alias checks prevent requests to an unready or mismatched worker.
+  Truncated output is rejected; generation deadlines remain distinct from connection
+  failures. Saved imports and reviewed rules survive backend changes.
 
 The networth curve is a flow-based estimate from the selected bank export. It
 does **not** include market gains/losses on investments, other banks, or

@@ -19,7 +19,7 @@ class ImportFormatTests(unittest.TestCase):
     def normalize(self, suffix, content, *, model=False):
         path = self.root / ('statement' + suffix)
         path.write_bytes(content if isinstance(content, bytes) else content.encode())
-        return normalize_file(path, ai_url='http://ollama:11434' if model else '', ai_model='test')
+        return normalize_file(path, ai_url='http://llama:8080' if model else '', ai_model='test')
 
     def test_signed_values_duplicates_and_explicit_accounts_survive(self):
         name = 'Long counterparty ' + 'x' * 100

@@ -42,7 +42,7 @@ misleading 0%.
 ### 9 — Local AI → automatic and reviewed rules (implemented)
 
 The optional review panel selects counterparties without explicit rules, requests local
-Ollama suggestions, and lets the user edit/approve categories and labels.
+llama.cpp suggestions, and lets the user edit/approve categories and labels.
 Saved patterns are fixed to full counterparty names; existing rules keep priority.
 Approved rules are private and profile-isolated, never written to the public
 demo rules. Stale reviews are rejected; writes are atomic. Reports refresh after

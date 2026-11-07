@@ -120,7 +120,7 @@ class ModelBoundaryTests(unittest.TestCase):
             try:
                 with self.assertRaises(ai_rules.ModelTimeout):
                     ai_rules.model_json(f"http://127.0.0.1:{server.server_port}",
-                                        "/api/tags", timeout=0.1)
+                                        "/health", timeout=0.1)
             finally:
                 release.set()
                 server.shutdown()
@@ -136,7 +136,7 @@ class ModelBoundaryTests(unittest.TestCase):
             thread.start()
             try:
                 with self.assertRaises(ai_rules.ModelError) as raised:
-                    ai_rules.model_json(f"http://127.0.0.1:{server.server_port}", "/api/tags")
+                    ai_rules.model_json(f"http://127.0.0.1:{server.server_port}", "/health")
                 self.assertNotIsInstance(raised.exception, ai_rules.ModelTimeout)
             finally:
                 server.shutdown()
@@ -158,8 +158,8 @@ class ModelBoundaryTests(unittest.TestCase):
                          [("example shop", "expense"), ("unknown sender", "uncategorized")])
 
     def test_model_endpoints_cannot_be_remote(self):
-        for url in ("https://ollama.com", "http://remote.example:11434", "http://localhost@remote.example",
-                    "http://localhost:11434/proxy", "http://localhost:11434?remote=1"):
+        for url in ("https://llama.cpp", "http://remote.example:8080", "http://localhost@remote.example",
+                    "http://localhost:8080/proxy", "http://localhost:8080?remote=1"):
             with self.subTest(url=url), self.assertRaises(ai_rules.ModelError):
                 ai_rules.local_url(url)
 

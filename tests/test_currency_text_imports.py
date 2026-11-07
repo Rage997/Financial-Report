@@ -24,7 +24,7 @@ class TextCurrencyImportTests(unittest.TestCase):
     def normalize(self, suffix, content, *, model=False):
         path = self.root / ('statement' + suffix)
         path.write_bytes(content if isinstance(content, bytes) else content.encode())
-        return normalize_file(path, ai_url='http://ollama:11434' if model else '', ai_model='test')
+        return normalize_file(path, ai_url='http://llama:8080' if model else '', ai_model='test')
 
     @staticmethod
     def extracted(line, text, *, amount='-19.50', date_='2025-03-01', direction='out',
