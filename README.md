@@ -53,26 +53,30 @@ single-source selection. The primary keeps the existing saved-selection behavior
 
 ## Recurring payments
 
-The dashboard identifies candidates with at least three payments to or from the
-same counterparty, keeping accounts, directions and currencies separate. It shows
-cadence, average amount, latest amount change, last paid and estimated next due.
-Select a name to open its classification label's history.
+The dashboard requires at least three payments to or from the same counterparty
+**with every consecutive interval fitting one weekly, biweekly, monthly or yearly
+schedule**. Three arbitrary purchases do not qualify. Irregular gaps and same-day
+duplicates exclude a group; a majority of regular-looking gaps is not enough.
+Accounts, directions and currencies stay separate. Amounts may vary, so a rent
+increase does not break an otherwise regular schedule. The card shows cadence,
+average amount, amount trend, last paid and estimated next due. Select a name
+to open its classification label's history.
 
 Use the card's **Candidate search**, **Direction**, **Cadence**, **Amount trend**
 and **Estimated due** filters to narrow this list without changing charts,
-transactions or pagination. **Regular only** hides irregular groups; search
-matches counterparty names/labels, accounts and source names. Filters combine
+transactions or pagination. All results already require a consistent cadence;
+search matches counterparty names/labels, accounts and source names. Filters combine
 with the dashboard's existing selection. The match count and active filters
 also appear in printed reports. **Reset candidate filters** clears only this
 card's controls; the main **Reset filters**, dataset reloads and closing a file
 clear them too. Theme changes and printing preserve them.
 
 Detection uses each source's full history; source, currency, direction and counterparty
-filters apply, but date/year/category/anomaly filters do not reduce the sample. Irregular
-groups have no due-date estimate. Days past an estimate are measured against the
-last recorded activity in that account/currency, **not today**. Incomplete
-statements cannot prove a payment was missed; these are not confirmed obligations.
-No AI is needed for this analysis.
+filters apply, but date/year/category/anomaly filters do not reduce the sample.
+This conservative rule can exclude interrupted schedules or incomplete statements.
+Days past an estimate are measured against the last recorded activity in that
+account/currency, **not today**. Statements cannot prove a payment was missed,
+and a detected schedule is not a confirmed obligation. No AI is needed.
 
 ## Anomaly review
 

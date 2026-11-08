@@ -217,6 +217,23 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
                 status, _ = await self.request(target)
                 self.assertEqual(status, expected)
 
+    async def test_recurring_api_excludes_repeats_without_a_consistent_schedule(self):
+        (self.data / "demo.csv").write_text(
+            "date;amount;currency;counterparty\n"
+            "2025-01-01;-100;CHF;Rent\n2025-02-01;-100;CHF;Rent\n2025-03-01;-120;CHF;Rent\n"
+            "2025-01-01;-7;CHF;RandomShop\n2025-01-02;-7;CHF;RandomShop\n2025-03-02;-7;CHF;RandomShop\n"
+            "2025-01-01;-10;CHF;Patchy\n2025-02-01;-10;CHF;Patchy\n2025-03-01;-10;CHF;Patchy\n2025-05-01;-10;CHF;Patchy\n"
+            "2025-01-01;-9;CHF;SameDay\n2025-02-01;-9;CHF;SameDay\n2025-02-01;-9;CHF;SameDay\n",
+            encoding="utf-8")
+        status, content = await self.request("/api/recurring?file=examples/demo.csv")
+        self.assertEqual(status, 200)
+        self.assertEqual([(r["counterparty"], r["count"], r["cadence"])
+                          for r in json.loads(content)["rows"]], [("Rent", 3, "monthly")])
+        status, content = await self.request("/api/transactions?file=examples/demo.csv")
+        self.assertEqual(status, 200)
+        self.assertEqual({r["counterparty"] for r in json.loads(content)["transactions"]},
+                         {"Rent", "RandomShop", "Patchy", "SameDay"})
+
     async def test_import_stays_private_and_never_overwrites_sources(self):
         for name in ("../escape.csv", "/tmp/escape.csv", "folder\\escape.csv"):
             with self.subTest(name=name), self.assertRaises(HTTPException) as error:

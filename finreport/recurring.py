@@ -21,21 +21,17 @@ _CADENCES = (("weekly", 6, 8), ("biweekly", 12, 16),
              ("monthly", 26, 35), ("yearly", 350, 380))
 
 
-def _cadence(gaps: list[int]) -> tuple[str, Decimal]:
-    middle = Decimal(str(median(gaps)))
-    # Same-day payments have no reliable ordering/cadence; preserve them in
-    # counts and amounts, but do not manufacture a regular schedule from them.
-    if all(gap > 0 for gap in gaps):
-        for name, low, high in _CADENCES:
-            if low <= middle <= high and sum(low <= gap <= high for gap in gaps) * 2 > len(gaps):
-                return name, middle
-    return "irregular", middle
+def _cadence(gaps: list[int]) -> tuple[str, Decimal] | None:
+    # Every observed interval must support the same schedule. A median or
+    # majority can hide erratic spending, long gaps, or same-day duplicates.
+    for name, low, high in _CADENCES:
+        if all(low <= gap <= high for gap in gaps):
+            return name, Decimal(str(median(gaps)))
+    return None
 
 
 def _next_due(payments: list[Transaction], cadence: str) -> date | None:
     last = payments[-1].date
-    if cadence == "irregular":
-        return None
     if cadence in ("weekly", "biweekly"):
         days = 7 if cadence == "weekly" else 14
         return last + timedelta(days=days) if last.toordinal() + days <= date.max.toordinal() else None
@@ -58,11 +54,11 @@ def _next_due(payments: list[Transaction], cadence: str) -> date | None:
 
 
 def recurring_rows(txns: list[Transaction]) -> list[dict]:
-    """Return groups with >=3 transactions, including explicitly irregular groups.
+    """Return groups with >=3 payments and a consistent supported cadence.
 
     Amounts remain Decimal, rounded half-up to currency precision for display.
     Trend = latest amount minus the median of earlier amounts (and its percent).
-    An ambiguous latest date has no trend; a zero baseline has no percentage.
+    Irregular or same-day repeats are excluded; a zero baseline has no percentage.
     Overdue days are relative to the last activity in that account/currency,
     never the wall clock. This cannot prove that a payment was missed.
     """
@@ -81,25 +77,27 @@ def recurring_rows(txns: list[Transaction]) -> list[dict]:
             continue
         payments.sort(key=lambda t: (t.date, t.txn_id))
         gaps = [(b.date - a.date).days for a, b in zip(payments, payments[1:])]
-        cadence, median_gap = _cadence(gaps)
+        schedule = _cadence(gaps)
+        if schedule is None:
+            continue
+        cadence, median_gap = schedule
         unit = Decimal(1).scaleb(-fraction_digits(currency))
         average = (sum((t.amount for t in payments), Decimal(0)) / len(payments)).quantize(
             unit, rounding=ROUND_HALF_UP)
         last = payments[-1]
         baseline = median(t.amount for t in payments[:-1])
-        unique_last = payments[-2].date != last.date
-        delta = last.amount - baseline if unique_last else None
+        delta = last.amount - baseline
         percent = (delta * 100 / baseline).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) \
-            if delta is not None and baseline else None
+            if baseline else None
         due = _next_due(payments, cadence)
         as_of = observed[(currency, account)]
         rows.append({
             "counterparty": counterparty, "label": last.label or counterparty,
             "account": account, "currency": currency, "direction": direction,
             "count": len(payments), "cadence": cadence, "median_gap_days": median_gap,
-            "average_amount": average, "last_amount": last.amount if unique_last else None,
-            "trend": "unknown" if delta is None else "up" if delta > 0 else "down" if delta < 0 else "flat",
-            "trend_amount": delta.quantize(unit, rounding=ROUND_HALF_UP) if delta is not None else None,
+            "average_amount": average, "last_amount": last.amount,
+            "trend": "up" if delta > 0 else "down" if delta < 0 else "flat",
+            "trend_amount": delta.quantize(unit, rounding=ROUND_HALF_UP),
             "trend_percent": percent, "last_paid": last.date.isoformat(),
             "next_due": due.isoformat() if due else None, "observed_through": as_of.isoformat(),
             "overdue_days": max(0, (as_of - due).days) if due else None,
@@ -113,7 +111,7 @@ def recurring_report(txns: list[Transaction]) -> str:
         digits = fraction_digits(row["currency"])
         percent = row["trend_percent"]
         trend = (f"{percent:+.2f}%" if percent is not None else
-                 f"{row['trend_amount']:+.{digits}f} (zero baseline)" if row["trend_amount"] is not None else "unknown")
+                 f"{row['trend_amount']:+.{digits}f} (zero baseline)")
         data.append([
             row["counterparty"], row["account"] or "—", row["direction"], row["currency"],
             row["count"], row["cadence"], f"{row['average_amount']:.{digits}f}", trend,

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -25,7 +25,6 @@ class RecurringTests(unittest.TestCase):
             (["2025-01-01", "2025-01-15", "2025-01-29"], "biweekly", "2025-02-12"),
             (["2025-01-01", "2025-02-01", "2025-03-01"], "monthly", "2025-04-01"),
             (["2022-06-15", "2023-06-15", "2024-06-15"], "yearly", "2025-06-15"),
-            (["2025-01-01", "2025-04-01", "2025-07-01"], "irregular", None),
         ]
         for days, cadence, due in cases:
             with self.subTest(cadence=cadence):
@@ -64,24 +63,34 @@ class RecurringTests(unittest.TestCase):
         self.assertEqual(recurring_rows([payment(day, counterparty=" ") for day in
                                          ("2025-01-01", "2025-02-01", "2025-03-01")]), [])
 
-    def test_same_day_duplicates_do_not_create_a_schedule_or_ordered_trend(self):
-        txns = [payment("2025-01-01"), payment("2025-02-01"), payment("2025-02-01", "120")]
-        row, = recurring_rows(txns)
-        self.assertEqual((row["count"], row["average_amount"]), (3, Decimal("106.67")))
-        self.assertEqual((row["cadence"], row["next_due"], row["overdue_days"]),
-                         ("irregular", None, None))
-        self.assertEqual((row["trend"], row["trend_percent"], row["last_amount"]),
-                         ("unknown", None, None))
+    def test_same_day_repeats_do_not_qualify_as_recurring(self):
+        for days in (
+                ("2025-01-01", "2025-02-01", "2025-02-01"),
+                ("2025-01-01", "2025-01-01", "2025-02-01", "2025-03-01")):
+            with self.subTest(days=days):
+                self.assertEqual(recurring_rows([payment(day) for day in days]), [])
 
-    def test_matching_median_alone_cannot_make_erratic_gaps_monthly(self):
-        row, = recurring_rows([payment(day) for day in ("2025-01-01", "2025-01-02", "2025-03-02")])
-        self.assertEqual(row["median_gap_days"], Decimal("30"))
-        self.assertEqual((row["cadence"], row["next_due"]), ("irregular", None))
+    def test_three_erratic_payments_do_not_qualify_as_recurring(self):
+        # Gaps of 1 and 59 days have a monthly-looking median, not a schedule.
+        self.assertEqual(recurring_rows([payment(day) for day in (
+            "2025-01-01", "2025-01-02", "2025-03-02")]), [])
 
-    def test_median_tolerates_one_missed_month_when_majority_is_monthly(self):
-        row, = recurring_rows([payment(day) for day in (
-            "2025-01-01", "2025-02-01", "2025-03-01", "2025-05-01")])
-        self.assertEqual((row["cadence"], row["next_due"]), ("monthly", "2025-06-01"))
+    def test_one_inconsistent_gap_disqualifies_a_candidate(self):
+        # A majority of monthly intervals must not hide the long final gap.
+        self.assertEqual(recurring_rows([payment(day) for day in (
+            "2025-01-01", "2025-02-01", "2025-03-01", "2025-05-01")]), [])
+
+    def test_posting_date_tolerance_applies_to_every_interval(self):
+        start = date(2020, 1, 1)
+        for cadence, low, high in (("weekly", 6, 8), ("biweekly", 12, 16),
+                                   ("monthly", 26, 35), ("yearly", 350, 380)):
+            for gaps, qualifies in (((low, high), True), ((low - 1, high), False),
+                                    ((low, high + 1), False)):
+                with self.subTest(cadence=cadence, gaps=gaps):
+                    days = (start, start + timedelta(days=gaps[0]),
+                            start + timedelta(days=sum(gaps)))
+                    rows = recurring_rows([payment(day.isoformat()) for day in days])
+                    self.assertEqual([r["cadence"] for r in rows], [cadence] if qualifies else [])
 
     def test_next_due_preserves_month_end_and_day_after_short_month(self):
         for days, expected in (
@@ -124,7 +133,8 @@ class RecurringCliTests(unittest.TestCase):
             source, rules = Path(folder) / "statement.csv", Path(folder) / "rules.json"
             source.write_text("date;amount;currency;counterparty\n"
                               "2024-12-01;-10;CHF;Rent\n2025-01-01;-10;CHF;Rent\n2025-02-01;-12;CHF;Rent\n"
-                              "2024-12-01;-5;USD;Other\n2025-01-01;-5;USD;Other\n2025-02-01;-5;USD;Other\n",
+                              "2024-12-01;-5;USD;Other\n2025-01-01;-5;USD;Other\n2025-02-01;-5;USD;Other\n"
+                              "2025-01-01;-7;CHF;RandomShop\n2025-01-02;-7;CHF;RandomShop\n2025-03-02;-7;CHF;RandomShop\n",
                               encoding="utf-8")
             rules.write_text('{"rules":[]}', encoding="utf-8")
             output = io.StringIO()
@@ -139,6 +149,7 @@ class RecurringCliTests(unittest.TestCase):
             self.assertIn("2025-03-01", text)
             self.assertNotIn("Other", text)
             self.assertNotIn("USD", text)
+            self.assertNotIn("RandomShop", text)
 
 
 if __name__ == "__main__":

@@ -30,19 +30,20 @@ and the recurring-payment dashboard card. Groups require at least three payments
 with the same raw counterparty name, account, direction and currency; shared
 classification labels never merge separate counterparties. Blank names are excluded.
 
-Cadence requires both a median gap and a strict majority of gaps inside an
-inclusive day window: weekly 6–8, biweekly 12–16, monthly 26–35, yearly 350–380.
-Other groups remain visible as irregular with no estimated due date. Same-day
-payments are retained but cannot establish cadence. Monthly estimates preserve
-month-end or the median payment day, clipped to shorter months; yearly estimates
-handle leap days.
+Repetition alone no longer qualifies: **every consecutive gap** must fit the
+same inclusive day window — weekly 6–8, biweekly 12–16, monthly 26–35, yearly
+350–380. Irregular and same-day repeats are excluded at the detector, including
+groups with a regular-looking median or majority but inconsistent individual
+intervals. This deliberately conservative rule may exclude interrupted schedules
+or incomplete statements. Amounts may vary. Monthly estimates preserve month-end
+or the median payment day, clipped to shorter months; yearly estimates handle leap days.
 
 The card shows count, cadence, average amount, latest amount change against the
 earlier median, last paid and estimated next due. Decimal calculations preserve
-currency precision. A zero baseline has an amount change instead of a percentage;
-an ambiguous latest payment date has no trend. Days past the estimate use the last
-recorded activity in the same account/currency, never today's date. These are
-candidates, not confirmed obligations or proof of missed payments.
+currency precision. A zero baseline has an amount change instead of a percentage.
+Days past the estimate use the last recorded activity in the same account/currency,
+never today's date. These are candidates, not confirmed obligations or proof of
+missed payments.
 
 Detection uses each source's full file history. The card respects source,
 currency, direction and counterparty selection/search, not date/year/category filters. Clicking a name
@@ -50,7 +51,7 @@ opens its classification label's full-history panel. Clearing, failed loads and
 dataset switches clear old results; late responses cannot replace a newer dataset.
 
 The card also has independent search (name/label/account/source), direction,
-cadence (including regular-only), amount-trend and estimated-due filters.
+cadence, amount-trend and estimated-due filters.
 They intersect the dashboard selection without changing transaction pagination,
 charts or the full-history detection sample. Missing due estimates are separate
 from estimates not yet passed. A local reset, match count and printable active
@@ -58,6 +59,10 @@ filter summary make exclusions visible. Main reset, dataset loads and close
 clear these controls; theme and print transitions preserve them. Browser checks
 cover each filter value, combinations, empty states, source/currency boundaries,
 literal HTML-like search text, mobile layout, pagination and PDF scope.
+The obsolete regular/irregular and ambiguous-trend choices were removed when
+the detector stopped returning non-recurring repeats. Regression cases now
+distinguish three erratic purchases from regularly timed payments, reject outlier
+gaps and same-day repeats, and retain normal posting-date tolerance and price changes.
 
 Verified through focused analysis/CLI and API tests, the full regression suite,
 an actual demo CLI run and desktop/mobile browser checks with isolated fixtures.

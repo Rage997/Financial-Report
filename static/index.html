@@ -60,19 +60,19 @@
 </section>
 <section class="card" id="recurringCard" aria-labelledby="recurringTitle">
 <div class="heading"><h2 id="recurringTitle">Recurring payment candidates</h2></div>
-<p class="hint">Full history, at least three payments per source/counterparty/account/direction/currency. Source, currency, direction and counterparty filters apply; date, year, category and anomaly filters do not change detection. Select a name to view its label's history.</p>
-<p class="hint">Cadence and due dates are estimates, not confirmed obligations. Trend compares the latest amount with the earlier median. Days past due use the last recorded account/currency activity, not today; incomplete statements cannot prove a missed payment.</p>
+<p class="hint">Full history: at least three payments with every interval fitting the same weekly (6–8 days), biweekly (12–16), monthly (26–35) or yearly (350–380) schedule. Repeated purchases without that pattern, inconsistent gaps and same-day duplicates are excluded. Each source/counterparty/account/direction/currency is assessed separately.</p>
+<p class="hint">Source, currency, direction and counterparty filters apply; date, year, category and anomaly filters do not change detection. Select a name to view its label's history. These are schedule candidates, not confirmed obligations. Missing statements or interrupted schedules can be excluded. Trend compares the latest amount with the earlier median; days past due use the last recorded account/currency activity, not today.</p>
 <div class="filters screen-only" aria-label="Recurring candidate filters">
 <label class="search">Candidate search<input id="recurringSearch" type="search" placeholder="Counterparty, account or source…"></label>
 <label>Direction<select id="recurringDirection"><option value="">All directions</option><option value="in">Incoming</option><option value="out">Outgoing</option></select></label>
-<label>Cadence<select id="recurringCadence"><option value="">All cadences</option><option value="regular">Regular only</option><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="irregular">Irregular only</option></select></label>
-<label>Amount trend<select id="recurringTrend"><option value="">All trends</option><option value="up">Rising</option><option value="flat">Unchanged</option><option value="down">Falling</option><option value="unknown">Unknown</option></select></label>
+<label>Cadence<select id="recurringCadence"><option value="">All cadences</option><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
+<label>Amount trend<select id="recurringTrend"><option value="">All trends</option><option value="up">Rising</option><option value="flat">Unchanged</option><option value="down">Falling</option></select></label>
 <label>Estimated due<select id="recurringDue"><option value="">All estimates</option><option value="past">Past estimate</option><option value="not-past">Not past estimate</option><option value="unknown">No estimate</option></select></label>
 <button id="recurringReset" type="button">Reset candidate filters</button>
 </div>
 <p class="hint" id="recurringFilterStatus" role="status"></p>
 <div class="table-wrap"><table><thead><tr><th>Counterparty / account</th><th>Direction</th><th>Count</th><th>Cadence</th><th class="num" id="recurringAverageHead">Average</th><th class="num">Latest vs prior median</th><th>Last paid</th><th>Estimated next due</th></tr></thead><tbody id="recurringRows"></tbody></table></div>
-<p id="recurringEmpty" role="status" hidden>No recurring candidates match the current dashboard selection and candidate filters.</p>
+<p id="recurringEmpty" role="status" hidden>No consistent recurring schedules match this selection. Repeated payments alone do not qualify.</p>
 </section>
 <section class="card"><div class="heading"><h2>Income & expenses</h2><label><input id="compareYear" type="checkbox"> Compare to last year</label><label>Group by <select id="group"><option value="month">Month</option><option value="year">Year</option></select></label></div><p class="hint">Drag to zoom · scroll to zoom · double-click to reset · click a period to filter · click legend items to toggle. Prior-year overlay uses monthly grouping and the same non-date filters; missing prior months are gaps, not zero.</p><div id="monthly" class="chart"></div></section>
 <section class="card"><div class="heading"><h2>Cash movement</h2><button id="resetZoom">Reset chart zoom</button></div><p class="hint" id="balanceHint">Selected cumulative flow and the primary source's flow-based networth estimate. No cross-bank networth consolidation.</p><div id="balance" class="chart"></div></section>
@@ -227,7 +227,7 @@ function renderRecurringPayments(){
   const rows=candidates.filter(r=>
     (!query||[r.label,r.counterparty,r.account,sourceName(r.source)].join(' ').toLowerCase().includes(query))&&
     (!localDirection||r.direction===localDirection)&&
-    (!cadence||(cadence==='regular'?r.cadence!=='irregular':r.cadence===cadence))&&
+    (!cadence||r.cadence===cadence)&&
     (!trend||r.trend===trend)&&
     (!due||(due==='past'?r.overdue_days>0:due==='not-past'?r.overdue_days===0:r.overdue_days===null)));
   const active=[];
@@ -239,8 +239,7 @@ function renderRecurringPayments(){
   $('recurringAverageHead').textContent='Average'+(cur?' ('+cur+')':'');
   const amount=value=>money(Math.round(Number(value)*factor(cur)),cur);
   $('recurringRows').innerHTML=rows.map(r=>{
-    const trend=r.trend==='unknown'?'Unknown (same-day payments)':
-      r.trend==='flat'?'Unchanged':
+    const trend=r.trend==='flat'?'Unchanged':
       (r.trend==='up'?'Up ':'Down ')+(r.trend_percent===null?
         amount(r.trend_amount)+' '+cur+' (zero baseline)':r.trend_percent.replace(/^-/,'')+'%');
     const due=r.next_due?esc(r.next_due):'Not estimated';

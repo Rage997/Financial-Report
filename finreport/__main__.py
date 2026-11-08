@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         txns = _load(args)
         if args.currency is not None:
             txns = _select_currency(txns, args.currency)
-        print("Cadence estimates, not confirmed obligations. Full file history; at least 3 payments per group.")
+        print("Cadence estimates, not confirmed obligations. Full file history; at least 3 payments with every interval fitting one supported cadence.")
         print("Trend: latest amount vs earlier median. Days past due: relative to last account/currency activity, not today.\n")
         print(recurring.recurring_report(txns))
 

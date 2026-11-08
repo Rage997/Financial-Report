@@ -129,10 +129,13 @@ outstanding within the agreed delivery scope.
   an explicit no-activity state. Browser-verified with demo and edge-case data.
 - **Recurring payments (#7)** — deterministic stdlib analysis, the `recurring`
   CLI command, `/api/recurring?file=…&currency=…` and a dashboard card. At least
-  three payments per raw counterparty/account/direction/currency are required.
-  Cadence, currency-rounded average, latest-vs-prior-median trend, last paid and
-  calendar-aware next-due estimates use full file history. Irregular groups have
-  no due date; same-day ambiguities and zero baselines are explicit. Decimal API
+  three payments per raw counterparty/account/direction/currency are required,
+  with every interval fitting one weekly/biweekly/monthly/yearly cadence.
+  Irregular repeats, same-day duplicates and groups with outlier gaps are excluded
+  by the detector, not merely hidden by UI filters. This can conservatively exclude
+  interrupted schedules or incomplete statements. Cadence, currency-rounded average,
+  amount trend and calendar-aware next-due estimates use full history; price changes
+  remain valid and zero baselines have no percentage. Decimal API
   fields serialize as strings. Days past due are relative to observed account
   activity, not today; no confirmed-obligation or missing-payment claim is made.
   Currency/direction/counterparty filters apply to the card independently of
@@ -189,7 +192,7 @@ or summed together, and overlapping statements are not deduplicated.
 ## Delivery complete
 
 All entries in `DEVELOPMENT.md` are implemented, including all three #13 parts.
-Final regression run: **190 tests passed**. User-facing checks also exercised
+Final regression run: **192 tests passed**. User-facing checks also exercised
 the real CLI, API, browser interactions and generated print/PDF output.
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic
