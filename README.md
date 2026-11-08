@@ -58,6 +58,15 @@ same counterparty, keeping accounts, directions and currencies separate. It show
 cadence, average amount, latest amount change, last paid and estimated next due.
 Select a name to open its classification label's history.
 
+Use the card's **Candidate search**, **Direction**, **Cadence**, **Amount trend**
+and **Estimated due** filters to narrow this list without changing charts,
+transactions or pagination. **Regular only** hides irregular groups; search
+matches counterparty names/labels, accounts and source names. Filters combine
+with the dashboard's existing selection. The match count and active filters
+also appear in printed reports. **Reset candidate filters** clears only this
+card's controls; the main **Reset filters**, dataset reloads and closing a file
+clear them too. Theme changes and printing preserve them.
+
 Detection uses each source's full history; source, currency, direction and counterparty
 filters apply, but date/year/category/anomaly filters do not reduce the sample. Irregular
 groups have no due-date estimate. Days past an estimate are measured against the

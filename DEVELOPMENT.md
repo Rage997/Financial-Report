@@ -49,6 +49,16 @@ currency, direction and counterparty selection/search, not date/year/category fi
 opens its classification label's full-history panel. Clearing, failed loads and
 dataset switches clear old results; late responses cannot replace a newer dataset.
 
+The card also has independent search (name/label/account/source), direction,
+cadence (including regular-only), amount-trend and estimated-due filters.
+They intersect the dashboard selection without changing transaction pagination,
+charts or the full-history detection sample. Missing due estimates are separate
+from estimates not yet passed. A local reset, match count and printable active
+filter summary make exclusions visible. Main reset, dataset loads and close
+clear these controls; theme and print transitions preserve them. Browser checks
+cover each filter value, combinations, empty states, source/currency boundaries,
+literal HTML-like search text, mobile layout, pagination and PDF scope.
+
 Verified through focused analysis/CLI and API tests, the full regression suite,
 an actual demo CLI run and desktop/mobile browser checks with isolated fixtures.
 Out of scope: cash-flow forecasting, cross-bank recurrence, manual cadence editing.

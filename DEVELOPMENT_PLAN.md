@@ -140,6 +140,11 @@ outstanding within the agreed delivery scope.
   cleared and superseded dataset loads cannot retain stale recurrence results.
   Tested through CLI/API and real desktop/mobile browser flows. Docker and
   public-export allowlists include the module.
+  Independent candidate search/direction/cadence/trend/due filters narrow only
+  this table, with local reset, match counts and printable filter provenance.
+  Browser-verified for combinations, null-versus-zero due estimates, source and
+  currency isolation, mobile/theme/print transitions, and unchanged chart/table
+  state outside the card. Main reset, dataset loads and close clear local filters.
 - **Anomaly flags (#10)** — stdlib `anomalies` CLI, `/api/anomalies`, transaction
   reason badges and an anomalies-only filter. Median/MAD and ratio thresholds
   use at least three strictly earlier payments, keeping exact counterparties,

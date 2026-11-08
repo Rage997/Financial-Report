@@ -62,8 +62,17 @@
 <div class="heading"><h2 id="recurringTitle">Recurring payment candidates</h2></div>
 <p class="hint">Full history, at least three payments per source/counterparty/account/direction/currency. Source, currency, direction and counterparty filters apply; date, year, category and anomaly filters do not change detection. Select a name to view its label's history.</p>
 <p class="hint">Cadence and due dates are estimates, not confirmed obligations. Trend compares the latest amount with the earlier median. Days past due use the last recorded account/currency activity, not today; incomplete statements cannot prove a missed payment.</p>
+<div class="filters screen-only" aria-label="Recurring candidate filters">
+<label class="search">Candidate search<input id="recurringSearch" type="search" placeholder="Counterparty, account or source…"></label>
+<label>Direction<select id="recurringDirection"><option value="">All directions</option><option value="in">Incoming</option><option value="out">Outgoing</option></select></label>
+<label>Cadence<select id="recurringCadence"><option value="">All cadences</option><option value="regular">Regular only</option><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="irregular">Irregular only</option></select></label>
+<label>Amount trend<select id="recurringTrend"><option value="">All trends</option><option value="up">Rising</option><option value="flat">Unchanged</option><option value="down">Falling</option><option value="unknown">Unknown</option></select></label>
+<label>Estimated due<select id="recurringDue"><option value="">All estimates</option><option value="past">Past estimate</option><option value="not-past">Not past estimate</option><option value="unknown">No estimate</option></select></label>
+<button id="recurringReset" type="button">Reset candidate filters</button>
+</div>
+<p class="hint" id="recurringFilterStatus" role="status"></p>
 <div class="table-wrap"><table><thead><tr><th>Counterparty / account</th><th>Direction</th><th>Count</th><th>Cadence</th><th class="num" id="recurringAverageHead">Average</th><th class="num">Latest vs prior median</th><th>Last paid</th><th>Estimated next due</th></tr></thead><tbody id="recurringRows"></tbody></table></div>
-<p id="recurringEmpty" role="status" hidden>No counterparties with at least three payments match this selection.</p>
+<p id="recurringEmpty" role="status" hidden>No recurring candidates match the current dashboard selection and candidate filters.</p>
 </section>
 <section class="card"><div class="heading"><h2>Income & expenses</h2><label><input id="compareYear" type="checkbox"> Compare to last year</label><label>Group by <select id="group"><option value="month">Month</option><option value="year">Year</option></select></label></div><p class="hint">Drag to zoom · scroll to zoom · double-click to reset · click a period to filter · click legend items to toggle. Prior-year overlay uses monthly grouping and the same non-date filters; missing prior months are gaps, not zero.</p><div id="monthly" class="chart"></div></section>
 <section class="card"><div class="heading"><h2>Cash movement</h2><button id="resetZoom">Reset chart zoom</button></div><p class="hint" id="balanceHint">Selected cumulative flow and the primary source's flow-based networth estimate. No cross-bank networth consolidation.</p><div id="balance" class="chart"></div></section>
@@ -170,7 +179,7 @@ async function load(){
     throw e;
   }
 }
-function reset(){for(const id of ['from','to','year','category','direction','search','sourceFilter'])$(id).value='';$('anomaliesOnly').checked=false;exact='';apply()}
+function reset(){for(const id of ['from','to','year','category','direction','search','sourceFilter'])$(id).value='';$('anomaliesOnly').checked=false;exact='';resetRecurringFilters();apply()}
 function renderCurrencyLabels(){$('amountHead').textContent='Amount'+(cur?' ('+cur+')':'')+' ↕'}
 function clearCounterparty(){exact='';$('search').value='';apply()}
 function drill(name){if(exact===name){clearCounterparty();return}exact=name;$('search').value=name;apply()}
@@ -207,10 +216,26 @@ counterpartyClearButtons.forEach(button=>button.hidden=!exact);
 renderCounterpartyHistory();
 renderRecurringPayments();
 $('counterrows').innerHTML=partners.map((p,i)=>`<tr><td class="name"><button class="link" data-partner="${i}">${esc(p.name)}</button></td><td>${p.count}</td><td class="num pos">${money(p.incoming,cur)}</td><td class="num neg">${money(p.outgoing,cur)}</td><td class="num">${money(p.incoming-p.outgoing,cur)}</td></tr>`).join('');renderRows();renderNetwork();const rendered=Promise.all(chartJobs);rendered.catch(fail);return rendered;}
+const recurringFilterFields=['recurringSearch','recurringDirection','recurringCadence','recurringTrend','recurringDue'];
+function resetRecurringFilters(){for(const id of recurringFilterFields)$(id).value=''}
 function renderRecurringPayments(){
   const search=$('search').value.toLowerCase(),direction=$('direction').value;
-  const rows=recurringRows.filter(r=>inSource(r)&&r.currency===cur&&(!direction||r.direction===direction)&&
+  const candidates=recurringRows.filter(r=>inSource(r)&&r.currency===cur&&(!direction||r.direction===direction)&&
     (exact?r.label===exact:(r.label+' '+r.counterparty).toLowerCase().includes(search)));
+  const query=$('recurringSearch').value.trim().toLowerCase(),localDirection=$('recurringDirection').value,
+    cadence=$('recurringCadence').value,trend=$('recurringTrend').value,due=$('recurringDue').value;
+  const rows=candidates.filter(r=>
+    (!query||[r.label,r.counterparty,r.account,sourceName(r.source)].join(' ').toLowerCase().includes(query))&&
+    (!localDirection||r.direction===localDirection)&&
+    (!cadence||(cadence==='regular'?r.cadence!=='irregular':r.cadence===cadence))&&
+    (!trend||r.trend===trend)&&
+    (!due||(due==='past'?r.overdue_days>0:due==='not-past'?r.overdue_days===0:r.overdue_days===null)));
+  const active=[];
+  if(query)active.push('Search: '+$('recurringSearch').value.trim());
+  for(const id of recurringFilterFields.slice(1)){
+    const field=$(id);if(field.value)active.push(field.selectedOptions[0].textContent);
+  }
+  $('recurringFilterStatus').textContent=`Showing ${rows.length} of ${candidates.length} candidates in the current dashboard source/currency/direction/counterparty selection. Candidate filters affect only this table. ${active.length?'Active: '+active.join(' · ')+'.':'No candidate filters.'}`;
   $('recurringAverageHead').textContent='Average'+(cur?' ('+cur+')':'');
   const amount=value=>money(Math.round(Number(value)*factor(cur)),cur);
   $('recurringRows').innerHTML=rows.map(r=>{
@@ -225,6 +250,9 @@ function renderRecurringPayments(){
   $('recurringEmpty').hidden=rows.length>0;
 }
 $('recurringRows').onclick=e=>{const button=e.target.closest('[data-recurring-label]');if(button)drill(button.dataset.recurringLabel)};
+$('recurringSearch').oninput=renderRecurringPayments;
+for(const id of recurringFilterFields.slice(1))$(id).onchange=renderRecurringPayments;
+$('recurringReset').onclick=()=>{resetRecurringFilters();renderRecurringPayments()};
 
 function renderCounterpartyHistory(){
   const panel=$('counterpartyHistory');
@@ -343,7 +371,7 @@ window.dashboard={
     else renderSources();
   },
   load,
-  clear(){++version;$('file').value='';$('currency').replaceChildren();$('year').replaceChildren(new Option('All years',''));cur='';digits={};balanceBases={};balanceBasis='configured';all=[];filtered=[];partners=[];nwPoints=[];recurringRows=[];selectedFiles=[];loadedSources=[];exact='';renderSources();renderCurrencyLabels();apply();$('dashboard').hidden=true;for(const cb of datasetChangedCbs)cb()},
+  clear(){++version;$('file').value='';$('currency').replaceChildren();$('year').replaceChildren(new Option('All years',''));cur='';digits={};balanceBases={};balanceBasis='configured';all=[];filtered=[];partners=[];nwPoints=[];recurringRows=[];selectedFiles=[];loadedSources=[];exact='';resetRecurringFilters();renderSources();renderCurrencyLabels();apply();$('dashboard').hidden=true;for(const cb of datasetChangedCbs)cb()},
   show(){$('dashboard').hidden=false;$('printDashboard').disabled=!loadedSources.length;for(const id of CHARTS){const d=$(id);if(d.data)Plotly.Plots.resize(d)}},
   hide(){$('dashboard').hidden=true;$('printDashboard').disabled=true},
   onDatasetChanged(cb){datasetChangedCbs.push(cb)}
