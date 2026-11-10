@@ -234,6 +234,23 @@ class PublicationBoundaryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({r["counterparty"] for r in json.loads(content)["transactions"]},
                          {"Rent", "RandomShop", "Patchy", "SameDay"})
 
+    async def test_recurring_income_excludes_extras_without_changing_financial_totals(self):
+        (self.data / "demo.csv").write_text(
+            "date;amount;currency;counterparty\n"
+            "2025-01-31;5000;CHF;Example Employer\n"
+            "2025-02-10;50;CHF;Example Employer\n"
+            "2025-02-28;5000;CHF;Example Employer\n"
+            "2025-03-31;5500;CHF;Example Employer\n", encoding="utf-8")
+        status, content = await self.request("/api/recurring?file=examples/demo.csv")
+        self.assertEqual(status, 200)
+        row, = json.loads(content)["rows"]
+        self.assertEqual((row["direction"], row["cadence"], row["count"], row["unscheduled_count"]),
+                         ("in", "monthly", 3, 1))
+        self.assertEqual((row["average_amount"], row["trend_percent"]), ("5166.67", "10.00"))
+        status, content = await self.request("/api/data?file=examples/demo.csv")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(content)["yearly"][0]["income"], 15550)
+
     async def test_import_stays_private_and_never_overwrites_sources(self):
         for name in ("../escape.csv", "/tmp/escape.csv", "folder\\escape.csv"):
             with self.subTest(name=name), self.assertRaises(HTTPException) as error:

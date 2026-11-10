@@ -129,13 +129,17 @@ outstanding within the agreed delivery scope.
   an explicit no-activity state. Browser-verified with demo and edge-case data.
 - **Recurring payments (#7)** — deterministic stdlib analysis, the `recurring`
   CLI command, `/api/recurring?file=…&currency=…` and a dashboard card. At least
-  three payments per raw counterparty/account/direction/currency are required,
-  with every interval fitting one weekly/biweekly/monthly/yearly cadence.
-  Irregular repeats, same-day duplicates and groups with outlier gaps are excluded
-  by the detector, not merely hidden by UI filters. This can conservatively exclude
-  interrupted schedules or incomplete statements. Cadence, currency-rounded average,
-  amount trend and calendar-aware next-due estimates use full history; price changes
-  remain valid and zero baselines have no percentage. Decimal API
+  three scheduled payments per raw counterparty/account/direction/currency are
+  required, covering at least two thirds of the group. The unique longest schedule
+  must fit one weekly/biweekly/monthly/yearly cadence without missing periods.
+  Off-schedule extras are counted separately; ignored edge payments must be less
+  than one minimum cadence interval away. Same-day duplicates, tied schedules
+  and small regular subsets of irregular groups remain excluded.
+  Salary reimbursements and partial first payments no longer hide an otherwise
+  clear income schedule. Averages, trends and due estimates use scheduled payments
+  only; all transactions and financial totals remain unchanged. Tested with
+  `demo-transactions2.csv` through CLI/API/browser and isolated regression cases.
+  Price changes remain valid and zero baselines have no percentage. Decimal API
   fields serialize as strings. Days past due are relative to observed account
   activity, not today; no confirmed-obligation or missing-payment claim is made.
   Currency/direction/counterparty filters apply to the card independently of
@@ -192,7 +196,7 @@ or summed together, and overlapping statements are not deduplicated.
 ## Delivery complete
 
 All entries in `DEVELOPMENT.md` are implemented, including all three #13 parts.
-Final regression run: **192 tests passed**. User-facing checks also exercised
+Final regression run: **198 tests passed**. User-facing checks also exercised
 the real CLI, API, browser interactions and generated print/PDF output.
 
 See `DEVELOPMENT.md` for acceptance criteria and exclusions. Automatic

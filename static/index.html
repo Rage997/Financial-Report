@@ -60,8 +60,8 @@
 </section>
 <section class="card" id="recurringCard" aria-labelledby="recurringTitle">
 <div class="heading"><h2 id="recurringTitle">Recurring payment candidates</h2></div>
-<p class="hint">Full history: at least three payments with every interval fitting the same weekly (6–8 days), biweekly (12–16), monthly (26–35) or yearly (350–380) schedule. Repeated purchases without that pattern, inconsistent gaps and same-day duplicates are excluded. Each source/counterparty/account/direction/currency is assessed separately.</p>
-<p class="hint">Source, currency, direction and counterparty filters apply; date, year, category and anomaly filters do not change detection. Select a name to view its label's history. These are schedule candidates, not confirmed obligations. Missing statements or interrupted schedules can be excluded. Trend compares the latest amount with the earlier median; days past due use the last recorded account/currency activity, not today.</p>
+<p class="hint">Full history: at least three scheduled payments covering at least two thirds of a counterparty's payments. Every scheduled interval must fit the same weekly (6–8 days), biweekly (12–16), monthly (26–35) or yearly (350–380) cadence. Off-schedule extras are counted separately, not included in averages, trends or due dates. Missing periods, equally plausible schedules and same-day duplicates are excluded; extras at the edges must be less than one minimum cadence interval away.</p>
+<p class="hint">Each source/counterparty/account/direction/currency is assessed separately. Source, currency, direction and counterparty filters apply; date, year, category and anomaly filters do not change detection. Select a name to view its label's full history, including extras. These are schedule candidates, not confirmed obligations or income categories. Incomplete statements can exclude a genuine schedule. Trend compares the latest scheduled amount with the earlier scheduled median; days past due use the last recorded account/currency activity, not today.</p>
 <div class="filters screen-only" aria-label="Recurring candidate filters">
 <label class="search">Candidate search<input id="recurringSearch" type="search" placeholder="Counterparty, account or source…"></label>
 <label>Direction<select id="recurringDirection"><option value="">All directions</option><option value="in">Incoming</option><option value="out">Outgoing</option></select></label>
@@ -71,7 +71,7 @@
 <button id="recurringReset" type="button">Reset candidate filters</button>
 </div>
 <p class="hint" id="recurringFilterStatus" role="status"></p>
-<div class="table-wrap"><table><thead><tr><th>Counterparty / account</th><th>Direction</th><th>Count</th><th>Cadence</th><th class="num" id="recurringAverageHead">Average</th><th class="num">Latest vs prior median</th><th>Last paid</th><th>Estimated next due</th></tr></thead><tbody id="recurringRows"></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>Counterparty / account</th><th>Direction</th><th>Scheduled</th><th>Cadence</th><th class="num" id="recurringAverageHead">Average</th><th class="num">Latest vs prior median</th><th>Last paid</th><th>Estimated next due</th></tr></thead><tbody id="recurringRows"></tbody></table></div>
 <p id="recurringEmpty" role="status" hidden>No consistent recurring schedules match this selection. Repeated payments alone do not qualify.</p>
 </section>
 <section class="card"><div class="heading"><h2>Income & expenses</h2><label><input id="compareYear" type="checkbox"> Compare to last year</label><label>Group by <select id="group"><option value="month">Month</option><option value="year">Year</option></select></label></div><p class="hint">Drag to zoom · scroll to zoom · double-click to reset · click a period to filter · click legend items to toggle. Prior-year overlay uses monthly grouping and the same non-date filters; missing prior months are gaps, not zero.</p><div id="monthly" class="chart"></div></section>
@@ -244,7 +244,8 @@ function renderRecurringPayments(){
         amount(r.trend_amount)+' '+cur+' (zero baseline)':r.trend_percent.replace(/^-/,'')+'%');
     const due=r.next_due?esc(r.next_due):'Not estimated';
     const late=r.overdue_days>0?'<br><strong class="neg">'+r.overdue_days+' days past estimate</strong>':'';
-    return `<tr><td class="name"><button class="link" data-recurring-label="${esc(r.label)}">${esc(r.counterparty)}</button>${r.label!==r.counterparty?'<br>'+esc(r.label):''}<br>${esc(sourceName(r.source))}<br>${r.account?esc(r.account):'Account not specified'}</td><td>${r.direction==='in'?'Incoming':'Outgoing'}</td><td>${r.count}</td><td>${esc(r.cadence)}<br>${esc(r.median_gap_days)} days median</td><td class="num">${amount(r.average_amount)}</td><td class="num">${esc(trend)}</td><td>${esc(r.last_paid)}</td><td>${due}${late}<br>Observed through ${esc(r.observed_through)}</td></tr>`;
+    const extras=r.unscheduled_count?`<br><small>${r.unscheduled_count} off-schedule</small>`:'';
+    return `<tr><td class="name"><button class="link" data-recurring-label="${esc(r.label)}">${esc(r.counterparty)}</button>${r.label!==r.counterparty?'<br>'+esc(r.label):''}<br>${esc(sourceName(r.source))}<br>${r.account?esc(r.account):'Account not specified'}</td><td>${r.direction==='in'?'Incoming':'Outgoing'}</td><td>${r.count}${extras}</td><td>${esc(r.cadence)}<br>${esc(r.median_gap_days)} days median</td><td class="num">${amount(r.average_amount)}</td><td class="num">${esc(trend)}</td><td>${esc(r.last_paid)}</td><td>${due}${late}<br>Observed through ${esc(r.observed_through)}</td></tr>`;
   }).join('');
   $('recurringEmpty').hidden=rows.length>0;
 }

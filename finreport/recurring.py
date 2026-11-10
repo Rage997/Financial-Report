@@ -5,6 +5,7 @@ Due dates are cadence estimates, not confirmed obligations or cash-flow forecast
 """
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from calendar import monthrange
 from collections import defaultdict
 from datetime import date, timedelta
@@ -21,13 +22,49 @@ _CADENCES = (("weekly", 6, 8), ("biweekly", 12, 16),
              ("monthly", 26, 35), ("yearly", 350, 380))
 
 
-def _cadence(gaps: list[int]) -> tuple[str, Decimal] | None:
-    # Every observed interval must support the same schedule. A median or
-    # majority can hide erratic spending, long gaps, or same-day duplicates.
+def _schedule(payments: list[Transaction]) -> tuple[str, list[Transaction]] | None:
+    """Find a unique longest schedule covering at least two thirds of the group.
+
+    Off-schedule payments may occur between scheduled payments, but no scheduled
+    interval may be skipped. At either edge, ignored payments must be less than
+    one minimum cadence interval away. Tied schedules and duplicate dates are
+    ambiguous: do not choose a payment arbitrarily.
+    """
+    days = [t.date.toordinal() for t in payments]
+    if any(a == b for a, b in zip(days, days[1:])):
+        return None
+    schedule = None
     for name, low, high in _CADENCES:
-        if all(low <= gap <= high for gap in gaps):
-            return name, Decimal(str(median(gaps)))
-    return None
+        lengths = [0] * len(days)
+        ways = [0] * len(days)
+        previous = [-1] * len(days)
+        for i, day in enumerate(days):
+            if day - days[0] < low:
+                lengths[i] = ways[i] = 1
+            # Date uniqueness bounds this window to at most high-low+1 parents.
+            for j in range(bisect_left(days, day - high, 0, i),
+                           bisect_right(days, day - low, 0, i)):
+                if not lengths[j]:
+                    continue
+                size = lengths[j] + 1
+                if size > lengths[i]:
+                    lengths[i], ways[i], previous[i] = size, ways[j], j
+                elif size == lengths[i]:
+                    ways[i] = min(2, ways[i] + ways[j])
+        ends = range(bisect_right(days, days[-1] - low), len(days))
+        size = max(lengths[i] for i in ends)
+        if size < 3 or size * 3 < len(days) * 2:
+            continue
+        winners = [i for i in ends if lengths[i] == size]
+        if schedule is not None or sum(ways[i] for i in winners) != 1:
+            return None
+        selected = []
+        i = winners[0]
+        while i != -1:
+            selected.append(payments[i])
+            i = previous[i]
+        schedule = name, selected[::-1]
+    return schedule
 
 
 def _next_due(payments: list[Transaction], cadence: str) -> date | None:
@@ -58,7 +95,8 @@ def recurring_rows(txns: list[Transaction]) -> list[dict]:
 
     Amounts remain Decimal, rounded half-up to currency precision for display.
     Trend = latest amount minus the median of earlier amounts (and its percent).
-    Irregular or same-day repeats are excluded; a zero baseline has no percentage.
+    Only scheduled payments contribute to amounts, trends and due dates; skipped
+    payments remain in ordinary reports. A zero baseline has no percentage.
     Overdue days are relative to the last activity in that account/currency,
     never the wall clock. This cannot prove that a payment was missed.
     """
@@ -76,11 +114,13 @@ def recurring_rows(txns: list[Transaction]) -> list[dict]:
         if len(payments) < 3:
             continue
         payments.sort(key=lambda t: (t.date, t.txn_id))
-        gaps = [(b.date - a.date).days for a, b in zip(payments, payments[1:])]
-        schedule = _cadence(gaps)
+        schedule = _schedule(payments)
         if schedule is None:
             continue
-        cadence, median_gap = schedule
+        total_count = len(payments)
+        cadence, payments = schedule
+        gaps = [(b.date - a.date).days for a, b in zip(payments, payments[1:])]
+        median_gap = Decimal(str(median(gaps)))
         unit = Decimal(1).scaleb(-fraction_digits(currency))
         average = (sum((t.amount for t in payments), Decimal(0)) / len(payments)).quantize(
             unit, rounding=ROUND_HALF_UP)
@@ -95,6 +135,7 @@ def recurring_rows(txns: list[Transaction]) -> list[dict]:
             "counterparty": counterparty, "label": last.label or counterparty,
             "account": account, "currency": currency, "direction": direction,
             "count": len(payments), "cadence": cadence, "median_gap_days": median_gap,
+            "unscheduled_count": total_count - len(payments),
             "average_amount": average, "last_amount": last.amount,
             "trend": "up" if delta > 0 else "down" if delta < 0 else "flat",
             "trend_amount": delta.quantize(unit, rounding=ROUND_HALF_UP),
@@ -114,11 +155,11 @@ def recurring_report(txns: list[Transaction]) -> str:
                  f"{row['trend_amount']:+.{digits}f} (zero baseline)")
         data.append([
             row["counterparty"], row["account"] or "—", row["direction"], row["currency"],
-            row["count"], row["cadence"], f"{row['average_amount']:.{digits}f}", trend,
+            row["count"], row["unscheduled_count"], row["cadence"], f"{row['average_amount']:.{digits}f}", trend,
             row["last_paid"], row["next_due"] or "—", row["observed_through"],
             row["overdue_days"] if row["overdue_days"] is not None else "—",
         ])
     return render_table([
-        "Counterparty", "Account", "Dir", "Currency", "Count", "Cadence", "Average",
+        "Counterparty", "Account", "Dir", "Currency", "Scheduled", "Other", "Cadence", "Average",
         "Latest vs prior median", "Last paid", "Est. next due", "Observed through", "Days past due",
     ], data)

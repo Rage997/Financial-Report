@@ -75,10 +75,61 @@ class RecurringTests(unittest.TestCase):
         self.assertEqual(recurring_rows([payment(day) for day in (
             "2025-01-01", "2025-01-02", "2025-03-02")]), [])
 
-    def test_one_inconsistent_gap_disqualifies_a_candidate(self):
-        # A majority of monthly intervals must not hide the long final gap.
+    def test_income_schedule_ignores_interleaved_and_trailing_extra_credits(self):
+        txns = [payment(day, amount, direction=Direction.IN, counterparty="Employer")
+                for day, amount in (("2025-01-31", "5000"), ("2025-02-10", "50"),
+                                    ("2025-02-28", "5000"), ("2025-03-31", "5200"),
+                                    ("2025-04-30", "5500"), ("2025-05-09", "370"))]
+        row, = recurring_rows(txns)
+        self.assertEqual((row["cadence"], row["count"], row["unscheduled_count"]),
+                         ("monthly", 4, 2))
+        self.assertEqual((row["average_amount"], row["last_amount"], row["trend_percent"]),
+                         (Decimal("5175.00"), Decimal("5500"), Decimal("10.00")))
+        self.assertEqual((row["last_paid"], row["next_due"]), ("2025-04-30", "2025-05-31"))
+        self.assertEqual(sum(t.amount for t in txns), Decimal("21120"))
+
+    def test_partial_first_payment_does_not_hide_a_subsequent_monthly_schedule(self):
+        txns = [payment(day, amount, direction=Direction.IN)
+                for day, amount in (("2026-05-13", "2408.23"), ("2026-06-04", "4214.39"),
+                                    ("2026-07-02", "4415.08"), ("2026-08-05", "4615.77"),
+                                    ("2026-09-04", "4214.39"), ("2026-10-05", "4415.08"))]
+        row, = recurring_rows(txns)
+        self.assertEqual((row["cadence"], row["count"], row["unscheduled_count"]),
+                         ("monthly", 5, 1))
+        self.assertEqual((row["average_amount"], row["next_due"]), (Decimal("4374.94"), "2026-11-04"))
+
+    def test_off_schedule_payments_do_not_hide_any_supported_cadence(self):
+        for days, extra, cadence in (
+                (("2025-01-01", "2025-01-08", "2025-01-15"), "2025-01-04", "weekly"),
+                (("2025-01-01", "2025-01-15", "2025-01-29"), "2025-01-08", "biweekly"),
+                (("2025-01-01", "2025-02-01", "2025-03-01"), "2025-01-15", "monthly"),
+                (("2023-01-01", "2024-01-01", "2025-01-01"), "2023-06-01", "yearly")):
+            with self.subTest(cadence=cadence):
+                row, = recurring_rows([payment(day) for day in days] + [payment(extra, "3")])
+                self.assertEqual((row["cadence"], row["count"], row["unscheduled_count"]),
+                                 (cadence, 3, 1))
+                self.assertEqual(row["average_amount"], Decimal("100.00"))
+
+    def test_missing_periods_cannot_be_discarded_as_extra_payments(self):
+        for days in (
+                ("2025-01-01", "2025-03-01", "2025-04-01", "2025-05-01"),
+                ("2025-01-01", "2025-02-01", "2025-04-01", "2025-05-01"),
+                ("2025-01-01", "2025-02-01", "2025-03-01", "2025-05-01")):
+            with self.subTest(days=days):
+                self.assertEqual(recurring_rows([payment(day) for day in days]), [])
+
+    def test_small_regular_subset_of_many_irregular_payments_is_not_a_schedule(self):
         self.assertEqual(recurring_rows([payment(day) for day in (
-            "2025-01-01", "2025-02-01", "2025-03-01", "2025-05-01")]), [])
+            "2025-01-01", "2025-01-10", "2025-01-20", "2025-02-01",
+            "2025-02-15", "2025-03-01")]), [])
+
+    def test_equally_plausible_scheduled_payments_are_not_chosen_arbitrarily(self):
+        # Both February credits could fit: their amount must not break the tie.
+        txns = [payment(day, amount) for day, amount in (
+            ("2025-01-31", "5000"), ("2025-02-27", "50"), ("2025-02-28", "5000"),
+            ("2025-03-31", "5000"), ("2025-04-30", "5000"))]
+        self.assertEqual(recurring_rows(txns), [])
+        self.assertEqual(recurring_rows(txns[::-1]), [])
 
     def test_posting_date_tolerance_applies_to_every_interval(self):
         start = date(2020, 1, 1)
@@ -147,7 +198,6 @@ class RecurringCliTests(unittest.TestCase):
             self.assertIn("10.67", text)
             self.assertIn("+20.00%", text)
             self.assertIn("2025-03-01", text)
-            self.assertNotIn("Other", text)
             self.assertNotIn("USD", text)
             self.assertNotIn("RandomShop", text)
 

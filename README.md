@@ -53,14 +53,20 @@ single-source selection. The primary keeps the existing saved-selection behavior
 
 ## Recurring payments
 
-The dashboard requires at least three payments to or from the same counterparty
-**with every consecutive interval fitting one weekly, biweekly, monthly or yearly
-schedule**. Three arbitrary purchases do not qualify. Irregular gaps and same-day
-duplicates exclude a group; a majority of regular-looking gaps is not enough.
+The dashboard looks for a **unique, uninterrupted schedule** of at least three
+payments covering at least two thirds of the same counterparty's payments.
+Every scheduled interval must fit one weekly, biweekly, monthly or yearly cadence.
+Off-schedule extras, such as reimbursements alongside a salary, are counted separately
+and excluded from schedule averages, trends and due dates—not from transactions
+or financial totals. An initial partial payment can also be excluded.
+
+Three arbitrary purchases do not qualify. Missing periods, equally plausible
+schedules and same-day duplicates exclude a group. Ignored payments at either
+edge must be less than one minimum cadence interval from the schedule.
 Accounts, directions and currencies stay separate. Amounts may vary, so a rent
-increase does not break an otherwise regular schedule. The card shows cadence,
-average amount, amount trend, last paid and estimated next due. Select a name
-to open its classification label's history.
+increase does not break a regular schedule. The card shows scheduled and extra
+counts, cadence, average amount, amount trend, last paid and estimated next due.
+Select a name to open its classification label's full history, including extras.
 
 Use the card's **Candidate search**, **Direction**, **Cadence**, **Amount trend**
 and **Estimated due** filters to narrow this list without changing charts,

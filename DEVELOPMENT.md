@@ -30,17 +30,24 @@ and the recurring-payment dashboard card. Groups require at least three payments
 with the same raw counterparty name, account, direction and currency; shared
 classification labels never merge separate counterparties. Blank names are excluded.
 
-Repetition alone no longer qualifies: **every consecutive gap** must fit the
-same inclusive day window — weekly 6–8, biweekly 12–16, monthly 26–35, yearly
-350–380. Irregular and same-day repeats are excluded at the detector, including
-groups with a regular-looking median or majority but inconsistent individual
-intervals. This deliberately conservative rule may exclude interrupted schedules
-or incomplete statements. Amounts may vary. Monthly estimates preserve month-end
-or the median payment day, clipped to shorter months; yearly estimates handle leap days.
+Repetition alone does not qualify. The unique longest schedule must contain at
+least three payments and at least two thirds of the group. Every **scheduled**
+gap must fit the same inclusive day window — weekly 6–8, biweekly 12–16, monthly
+26–35, yearly 350–380. A bounded date-window search finds that schedule without
+assuming equal amounts. Off-schedule extras may be skipped, but no whole cadence
+interval may be skipped at the beginning, middle or end: ignored edge payments
+must be less than the cadence's minimum interval from the selected schedule.
+Tied longest schedules and duplicate dates are ambiguous and excluded.
+This conservative rule can still exclude genuine schedules in incomplete statements.
+Monthly estimates preserve month-end or the median scheduled payment day, clipped
+to shorter months; yearly estimates handle leap days.
 
-The card shows count, cadence, average amount, latest amount change against the
-earlier median, last paid and estimated next due. Decimal calculations preserve
-currency precision. A zero baseline has an amount change instead of a percentage.
+The card and CLI show scheduled and off-schedule counts. Average amount, latest
+amount change against the earlier median, last paid and estimated next due use
+only scheduled payments. The API exposes `count` and `unscheduled_count`.
+All payments remain in transactions, label history and financial totals; schedule
+detection does not infer an income category. Decimal calculations preserve currency
+precision. A zero baseline has an amount change instead of a percentage.
 Days past the estimate use the last recorded activity in the same account/currency,
 never today's date. These are candidates, not confirmed obligations or proof of
 missed payments.
@@ -60,12 +67,20 @@ clear these controls; theme and print transitions preserve them. Browser checks
 cover each filter value, combinations, empty states, source/currency boundaries,
 literal HTML-like search text, mobile layout, pagination and PDF scope.
 The obsolete regular/irregular and ambiguous-trend choices were removed when
-the detector stopped returning non-recurring repeats. Regression cases now
-distinguish three erratic purchases from regularly timed payments, reject outlier
-gaps and same-day repeats, and retain normal posting-date tolerance and price changes.
+the detector stopped returning non-recurring repeats. Regression cases distinguish
+three erratic purchases from regular payments, reject missing periods, same-day
+repeats, ambiguous matches and small regular subsets of otherwise irregular groups,
+and retain posting-date tolerance and price changes.
+
+The recurring-income correction also covers salaries mixed with reimbursements,
+trailing extra credits and an initial partial-month payment. The user-supplied
+`examples/demo-transactions2.csv` was exercised through the CLI, API and browser:
+both employers' monthly salaries and the subsequent monthly incoming stream are
+detected without changing income totals. This local test fixture was not added
+to public-export or Docker allowlists. Permanent regressions use isolated data.
 
 Verified through focused analysis/CLI and API tests, the full regression suite,
-an actual demo CLI run and desktop/mobile browser checks with isolated fixtures.
+actual demo CLI runs and browser checks with isolated fixtures.
 Out of scope: cash-flow forecasting, cross-bank recurrence, manual cadence editing.
 
 ### 8 — Period comparisons (MoM / YoY, implemented)
