@@ -317,7 +317,7 @@ function renderNetwork(){
     const off=(p.incoming>0&&p.outgoing>0)?4:0;
     // Both endpoints use axis coordinates; Plotly otherwise treats ax/ay as pixel offsets.
     if(p.incoming>0){const w=1+2*Math.sqrt(p.incoming/maxVol),e={x:cx+ux*16+px*off,y:cy+uy*16+py*off},s={x:o.x-ux*15+px*off,y:o.y-uy*15+py*off};anns.push({xref:'x',yref:'y',axref:'x',ayref:'y',x:e.x,y:e.y,ax:s.x,ay:s.y,showarrow:true,arrowhead:3,arrowwidth:w,arrowcolor:colors[cat(p)],text:''})}
-    if(p.outgoing>0){const w=1+2*Math.sqrt(p.outgoing/maxVol),e={x:cx-ux*15-px*off,y:cy-uy*15-py*off},s={x:o.x+ux*16-px*off,y:o.y+uy*16-py*off};anns.push({xref:'x',yref:'y',axref:'x',ayref:'y',x:e.x,y:e.y,ax:s.x,ay:s.y,showarrow:true,arrowhead:3,arrowwidth:w,arrowcolor:colors[cat(p)],text:''})}
+    if(p.outgoing>0){const w=1+2*Math.sqrt(p.outgoing/maxVol),s={x:cx+ux*16-px*off,y:cy+uy*16-py*off},e={x:o.x-ux*15-px*off,y:o.y-uy*15-py*off};anns.push({xref:'x',yref:'y',axref:'x',ayref:'y',x:e.x,y:e.y,ax:s.x,ay:s.y,showarrow:true,arrowhead:3,arrowwidth:w,arrowcolor:colors[cat(p)],text:''})}
   });
   drawChart('network',[nodes,hub],{...base,annotations:anns},config).then(bindChartHooks).catch(fail);
 }
