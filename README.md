@@ -2,6 +2,15 @@
 
 Turn bank statements into a dashboard for income, expenses and cash flow. Upload a file, review its categories, and explore your transactions. Your data stays on the machine running the app, with optional local AI through llama.cpp—no cloud model required.
 
+## See it in action
+
+<a href="docs/media/financialreport-demo.mp4">
+  <picture>
+    <source media="(prefers-reduced-motion: reduce)" srcset="docs/media/financialreport-poster.png">
+    <img src="docs/media/financialreport-preview.gif" alt="Watch FinancialReport: Where did it all go? A visual walkthrough from spending questions to individual payments." width="960" height="540">
+  </picture>
+</a>
+
 ## Get started
 
 You'll need Docker Compose and several GB of free disk space.
