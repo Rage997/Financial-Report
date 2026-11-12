@@ -1,0 +1,36 @@
+{
+  "tests": {"command": ".venv/bin/python -m unittest discover -s tests -v", "passed": 198},
+  "browser": {
+    "demo_totals_unchanged": ["164'461.99", "109'486.88", "54'975.11", "159'028.49", "63'066.88"],
+    "year_filter": "2025 selects 206 of 412 CHF transactions",
+    "sort": "Amount ascending starts with +1.50, +1.65, +1.80, +1.95, +2.10",
+    "empty_state": "Unmatched counterparty search shows zero rows and recovery guidance",
+    "history": "Salary counterparty selects 24 transactions, 141588.00 CHF incoming",
+    "recurring_filter": "Outgoing selects 13 of 14 candidates without changing dashboard selection",
+    "calendar": "Next from June selects July without changing date filters; July 1 selection sets both dates and selects 2 transactions",
+    "theme": "Dark mode preserves transaction page 51–100 of 206",
+    "csv": "Actual download completed, 22097 bytes, 206 selected transactions plus header",
+    "pdf": "Actual landscape PDF inspected; includes selected filter context and current page, opens explanatory disclosures",
+    "print_button": "Uses light chart palette with all report disclosures expanded; restores dark theme, page 51–100 of 412 and prior disclosure states",
+    "real_import": "Temporary CSV imports 3 transactions; active job controls appear beside top status; missing-currency warning automatically expands report scope; temporary import deleted via UI",
+    "phone_ledger": "390px viewport and body width, 358px table width; all 8 transaction fields retained as labelled records",
+    "responsive": "No document overflow after chart resizing at 320, 390, 1280, 1440 and 1920 CSS px; container capped at 1440px",
+    "phone_calendar": "December 1 selects 2 transactions and displays exact incoming 5859.00, outgoing 1865.00 and net 3994.00 CHF",
+    "keyboard": "Enter opens Tools with a 2px visible focus outline; Escape closes it and returns focus to its summary",
+    "chart_click": "Clicking the January 2024 income bar sets January 1–31 and selects 17 of 412 transactions",
+    "deployed": "Rebuilt app-only Docker image becomes healthy; localhost:8010 serves new CSS, tokenized dark welcome screen and Tools with no browser errors"
+  },
+  "contrast": {"light_job_min":4.63,"dark_job_min":5.44,"light_field_edge":3.56,"dark_field_edge":4.65,"light_body":13.21,"dark_body":15.01},
+  "package": {"public_files":62,"new_css_included":true,"private_and_review_artifacts_excluded":true},
+  "review": {"visual_findings":3,"resolved":3,"contract_findings":0,"gate_56":"False positive: sticky headers belong to independent overflow:auto table scrollers, not competing page-level headers."},
+  "hallmark": {
+    "static": {"fail":0,"warn":0,"reflex":0,"answered":6},
+    "rendered": {"fail":2,"warn":2,"reflex":0,"answered":6,"dismissed":3},
+    "rendered_findings": [
+      "Gate 56 falsely treats independent table scrollers as competing sticky page headers; independently reviewed.",
+      "Kept links compares a dataset-specific source-download URL from the baseline with an empty demo import archive. The generic download feature remains. The only DELETE in this session's demo server log is the temporary smoke import.",
+      "Static index.html cannot render correctly through file:// because the app uses absolute /static URLs. Live HTTP route rendering is authoritative.",
+      "Job badge contrast warnings merge opposite themes; measured live minimum is 4.63:1."
+    ]
+  }
+}

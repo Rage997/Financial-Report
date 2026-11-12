@@ -2,9 +2,11 @@
 (function(){
 'use strict';
 const root=document.documentElement;
-let printing=false,buttonPrint=false,contextReader,svgState=[];
+let printing=false,buttonPrint=false,contextReader,svgState=[],closedDetails=[];
 function setPrintLayout(){
   printing=true;root.setAttribute('data-printing','');root.removeAttribute('data-theme');
+  closedDetails=[...document.querySelectorAll('#dashboard details:not([open])')];
+  for(const details of closedDetails)details.open=true;
   document.getElementById('printContext').textContent=contextReader();
 }
 function scaleSVGs(){
@@ -19,6 +21,8 @@ async function restore(){
     if(previous===null)svg.removeAttribute('viewBox');else svg.setAttribute('viewBox',previous);
   }
   svgState=[];root.removeAttribute('data-printing');
+  for(const details of closedDetails)details.open=false;
+  closedDetails=[];
   const palette=window.dashboardAppearance.palette();
   if(palette.theme==='dark')root.setAttribute('data-theme','dark');else root.removeAttribute('data-theme');
   printing=false;

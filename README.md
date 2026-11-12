@@ -104,15 +104,27 @@ with invented zeros. Comparisons cover available records, not verified full stat
 
 ## Display
 
-Use **Dark mode / Light mode** in the header. Your explicit choice is saved in
+The overview leads with financial totals and cash-flow charts, followed by the
+transaction ledger. Use the section links to reach transactions, recurring
+payments, the calendar and counterparties. Expand **Analysis sources** to combine
+statements; report methodology and comparison dates remain available under
+**Report scope and period comparison**. On phones, expand **Filter transactions**
+to edit the filters; the summary shows the selected currency and active-filter
+count. Tables become labelled records without dropping financial fields.
+Dataset warnings open the report-scope disclosure automatically. Running imports
+and newly failed uploads keep their progress, cancel or retry controls beside
+the top status message; completed history stays below the report.
+
+Use **Tools → Dark mode / Light mode** in the header. Your explicit choice is saved in
 this browser; without one, the dashboard follows the system theme. Charts update
 with the page, without clearing filters or changing the transaction page.
 
-**Print / Save PDF** opens your browser's print dialog; choose **Save as PDF**
+**Tools → Print / Save PDF** opens your browser's print dialog; choose **Save as PDF**
 there. Output is light, landscape A4, and stays entirely on your machine.
 Charts/KPIs use all filtered transactions; the transaction table prints only its
 current page. The report records that page, sources, currency and filters.
-Printing does not change your theme preference or selection.
+Printing expands report explanations and restores their previous open/closed
+state afterward. It does not change your theme preference or selection.
 
 The **Calendar** lets you browse months without changing the current date range.
 Select a day to set From/To to that date and clear the Year filter. Daily counts

@@ -20,14 +20,18 @@ function persist(value){
   try{window.localStorage.setItem(STORAGE_KEY,value)}catch(e){/* session-only theme */}
 }
 function palette(theme){
-  if(theme==='dark')return{
-    theme:'dark',paper:'#16202f',ink:'#e8eef6',muted:'#9aa9bd',grid:'#2b3a50',axis:'#9aa9bd',
-    categories:{income:'#3ecfa5',expense:'#ef7c8c',transfer:'#6ea0ff',investment:'#b18cf0',uncategorized:'#93a3b8'}
+  const previous=root.getAttribute('data-theme');
+  setThemeAttribute(theme);
+  const style=getComputedStyle(root),token=name=>style.getPropertyValue(name).trim();
+  const result={
+    theme, paper:token('--surface'), ink:token('--ink'), muted:token('--muted'),
+    grid:token('--line'), axis:token('--muted'), reference:token('--color-uncategorized'),
+    font:token('--font-body'),
+    categories:{income:token('--green'),expense:token('--red'),transfer:token('--blue'),
+      investment:token('--color-investment'),uncategorized:token('--color-uncategorized')}
   };
-  return{
-    theme:'light',paper:'#ffffff',ink:'#172b42',muted:'#64748b',grid:'#edf1f5',axis:'#64748b',
-    categories:{income:'#16816a',expense:'#cd5060',transfer:'#3975d5',investment:'#8960c2',uncategorized:'#94a3b8'}
-  };
+  if(previous===null)root.removeAttribute('data-theme');else root.setAttribute('data-theme',previous);
+  return result;
 }
 function setThemeAttribute(theme){
   if(theme==='dark')root.setAttribute('data-theme','dark');

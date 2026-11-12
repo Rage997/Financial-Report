@@ -1,0 +1,35 @@
+/* Hallmark · shape: app screen · theme: Console · modes: light+dark · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: H, promote cash flow above setup notes */
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: .75rem; --text-sm: .875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-body); --font-outlier: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --display-weight: 600; --tracking-display: -.025em;
+  --container: 1440px; --gutter: 40px; --gap-columns: 24px;
+  --radius-card: 10px; --radius-pill: 6px;
+  --dur-micro: 120ms; --dur-short: 220ms; --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --color-paper: #f5f4f0; --color-paper-2: #fcfbf8; --color-paper-3: #edece7;
+  --color-ink: #242a2d; --color-ink-2: #41484c; --color-muted: #61686b;
+  --color-rule: #d5d7d3; --color-rule-2: #7b8282;
+  --color-accent: #815700; --color-accent-ink: #fff9e9; --color-accent-soft: #f2e8d0; --color-focus: #815700;
+  --color-cool: #316c9e; --color-cool-soft: #e4edf3;
+  --color-ok: #26745c; --color-ok-soft: #e4eee6; --color-bad: #ae4840; --color-bad-soft: #f6e8e4;
+  --color-investment: #7a6a9a; --color-uncategorized: #747c83;
+  --color-print-paper: #ffffff; --color-print-ink: #242a2d; --color-print-muted: #61686b; --color-print-rule: #d5d7d3;
+  --bg: var(--color-paper); --surface: var(--color-paper-2); --ink: var(--color-ink); --muted: var(--color-muted); --line: var(--color-rule);
+  --blue: var(--color-cool); --green: var(--color-ok); --red: var(--color-bad);
+  --color-error: var(--red); --color-success: var(--green); --calendar-selected: var(--color-accent);
+}
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --color-paper: #15191c; --color-paper-2: #1d2226; --color-paper-3: #272d31;
+  --color-ink: #e9edef; --color-ink-2: #c6ced2; --color-muted: #a3afb5;
+  --color-rule: #394248; --color-rule-2: #77858d;
+  --color-accent: #eabe62; --color-accent-ink: #282117; --color-accent-soft: #3b3323; --color-focus: #eabe62;
+  --color-cool: #86b7dc; --color-cool-soft: #253b4b;
+  --color-ok: #83c7aa; --color-ok-soft: #243a30; --color-bad: #ed9c93; --color-bad-soft: #432d2b;
+  --color-investment: #b6a7d2; --color-uncategorized: #a5b0b8;
+}

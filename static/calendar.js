@@ -48,7 +48,7 @@ function render(){
   element('calendarMonth').disabled=!month;
   element('calendarPrev').disabled=!shiftMonth({month,step:-1});
   element('calendarNext').disabled=!shiftMonth({month,step:1});
-  element('calendarTitle').textContent='Calendar'+(month?' · '+monthFormat.format(monthDate(month)):'');
+  element('calendarTitle').textContent='Calendar'+(month?': '+monthFormat.format(monthDate(month)):'');
   element('calendarSelection').textContent='';
   element('calendarWeekdays').hidden=!month;
   if(!month){element('calendarSummary').textContent='No recorded activity for this source/currency selection.';return}

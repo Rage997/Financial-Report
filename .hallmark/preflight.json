@@ -1,0 +1,15 @@
+{
+  "scanned": "2026-11-12",
+  "findings": {
+    "fonts": "System sans, 14px body, 11px filter labels (static/index.html:4)",
+    "palette": "Cool blue-gray surfaces, navy header, green/red monetary states (static/index.html:4); saved light/dark modes (static/appearance.js:4-75)",
+    "motion": "No motion framework; width transition on import progress (static/imports.css:29)",
+    "spacing": "Inline dashboard CSS and separate feature stylesheets; repeated rounded panels (static/index.html:4)",
+    "framework": "FastAPI with vanilla HTML/JavaScript and local Plotly (app.py:74-75, static/index.html:5)",
+    "product": "Local demo review server on 127.0.0.1:8011. Existing Docker service left untouched.",
+    "designSystem": "No design.md, DESIGN.md, brand spec, or project font assets found.",
+    "workingTree": "Existing untracked resume.sh belongs to the user and will remain untouched."
+  },
+  "preserve": ["All financial calculations and APIs", "Import and classification workflows", "Filter and chart interactions", "Saved appearance preference", "CSV and PDF export", "Existing content and financial caveats"],
+  "introduce": ["Clearer dashboard hierarchy", "Consistent design tokens", "Accessible control states", "Responsive app layout"]
+}

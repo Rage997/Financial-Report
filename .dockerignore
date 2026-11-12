@@ -30,6 +30,9 @@
 !finreport/anomalies.py
 !static
 !static/index.html
+!static/dashboard.css
+!static/tokens.css
+!static/base.css
 !static/ai-rules.js
 !static/ai-rules.css
 !static/imports.js

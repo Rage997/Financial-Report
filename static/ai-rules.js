@@ -35,11 +35,11 @@ async function refreshStatus(){
     el.dot.className='ai-dot '+(s.enabled&&s.available?'ok':'bad');
     if(!s.enabled){el.statusLine.textContent='Local AI is disabled (FINREPORT_AI_URL not set). The dashboard works normally without it.';el.suggest.disabled=true;}
     else if(!s.available){el.statusLine.textContent='Local model unavailable — '+(s.message||'check the llama container in Docker Compose')+'. The dashboard works normally without it.';el.suggest.disabled=true;}
-    else{el.statusLine.textContent='Local llama.cpp model ready: '+s.model+' · suggestions require your review.';}
+    else{el.statusLine.textContent='Local llama.cpp model ready: '+s.model+'. Suggestions require your review.';}
   }catch(e){
     statusInfo=null;
     el.dot.className='ai-dot bad';
-    el.statusLine.textContent='Could not check local model: '+e.message+' · the dashboard is unaffected.';
+    el.statusLine.textContent='Could not check local model: '+e.message+'. The dashboard is unaffected.';
     el.suggest.disabled=true;
   }
   updateSuggestEnabled();
@@ -74,7 +74,7 @@ function renderList(){
     const name=document.createElement('span');name.className='ai-cp-name';name.textContent=c.counterparty;
     const meta=document.createElement('span');meta.className='ai-cp-meta';
     meta.textContent=c.count+' × '+(c.current_category||'uncategorized');
-    meta.title='directions: '+(c.directions||[]).join(', ')+' · payment types: '+(c.payment_types||[]).join(', ');
+    meta.title='directions: '+(c.directions||[]).join(', ')+'; payment types: '+(c.payment_types||[]).join(', ');
     label.append(cb,name,meta);
     frag.append(label);
   }
@@ -93,7 +93,7 @@ function renderList(){
 
 function selectedCps(){return [...el.list.querySelectorAll('input[type=checkbox]:checked')].map(cb=>cb.dataset.cp)}
 function updateSelection(){
-  el.count.textContent=candidates.length?selectedCps().length+' of '+MAX_BATCH+' selected · '+candidates.length+' eligible':'';
+  el.count.textContent=candidates.length?selectedCps().length+' of '+MAX_BATCH+' selected, '+candidates.length+' eligible':'';
   updateSuggestEnabled();
 }
 function updateSuggestEnabled(){
@@ -120,7 +120,7 @@ el.suggest.onclick=async()=>{
     revision=d.revision;
     renderReview(d.suggestions);
     const unsure=d.suggestions.filter(s=>s.category==='uncategorized').length;
-    setMsg(el.msg,d.suggestions.length+' suggestion'+(d.suggestions.length===1?'':'s')+' ready for review'+(unsure?' · '+unsure+' marked uncategorized — choose a category manually; none are auto-approved.':'')+'. Tick the rows you approve, then save.','ok');
+    setMsg(el.msg,d.suggestions.length+' suggestion'+(d.suggestions.length===1?'':'s')+' ready for review'+(unsure?'; '+unsure+' marked uncategorized — choose a category manually; none are auto-approved':'')+'. Tick the rows you approve, then save.','ok');
   }catch(e){
     revision=null;
     setMsg(el.msg,'Suggestion failed: '+e.message,'err');
@@ -199,7 +199,7 @@ el.save.onclick=async()=>{
       setMsg(el.saveMsg,e.message+' — suggestions invalidated; please re-request.','err');
       refreshCandidates();
     }else{
-      setMsg(el.saveMsg,'Save could not be confirmed: '+e.message+' · refresh before retrying if the connection was interrupted.','err');
+      setMsg(el.saveMsg,'Save could not be confirmed: '+e.message+'. Refresh before retrying if the connection was interrupted.','err');
     }
   }finally{busy=false;el.discard.disabled=false;updateSaveEnabled();updateSuggestEnabled()}
 };

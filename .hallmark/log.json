@@ -1,0 +1,30 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "console",
+  "axes": "dark/grotesk-sans/chromatic-amber",
+  "hero": "not applicable: app screen",
+  "nav": "compact top bar with native Tools disclosure and section links",
+  "footer": "existing imports archive",
+  "imagery": "none; actual financial data",
+  "photos": [],
+  "entry": "static/index.html",
+  "fingerprint": "cash-flow-first/native-disclosures/shared-stat-row/ledger/section-links/dual-mode",
+  "sections": [
+   "overview",
+   "cash flow",
+   "transactions",
+   "calendar",
+   "recurring",
+   "counterparty analysis",
+   "import history"
+  ],
+  "signature": "cash-flow overview above the transaction ledger",
+  "waived": [],
+  "prompt": "Review and improve the working financial report app UI. Restrained utilitarian redesign preserving all features and both modes.",
+  "date": "2026-11-12"
+ }
+]

@@ -206,6 +206,22 @@ filters, anomaly-only activity, source/currency isolation, three-decimal amounts
 leap February, year boundaries and PDF output. Node-backed regressions cover
 Gregorian month lengths, UTC/DST independence, navigation limits and exact sums.
 
+**Dashboard redesign implemented:** a restrained Console-derived paper/graphite
+system replaces the navy header and repeated boxed panels. Shared tokens live
+in `static/tokens.css`; `base.css` holds resets/accessibility rules and
+`dashboard.css` owns the shell, typography, controls and responsive ledger.
+Charts read the same tokens through `dashboardAppearance.palette()`. System
+fonts and bundled Plotly retain the offline, no-build-step contract.
+
+The source chooser and methodology use native disclosures. Cash-flow charts
+and the transaction ledger lead; section links reach the remaining analyses.
+Phone filters collapse with an active-filter summary, and transaction,
+counterparty and recurring tables retain all columns as labelled records.
+Printing expands disclosures temporarily and restores them with the saved
+theme and pagination. Docker and public-export allowlists include the new CSS.
+Dataset warnings force the scope disclosure open. Active or just-failed imports
+stay beside the top feedback message; archived imports remain below the report.
+
 ## Ground rules for future work
 
 - Frontend: a single-page dashboard with vanilla JS/CSS, no build step or CDN;

@@ -43,11 +43,11 @@ function renderSaved(){
   }else el.continueBtn.hidden=true;
 }
 function jobStatusText(j){
-  const phases={waiting:'Waiting for the local model',loading:'Processing input',generating:'Generating response · '+j.ai_chars+' characters received'};
+  const phases={waiting:'Waiting for the local model',loading:'Processing input',generating:'Generating response, '+j.ai_chars+' characters received'};
   const parts=[j.stage||'',duration(j.elapsed_seconds)+' elapsed'];
   if(j.ai_phase)parts.push(phases[j.ai_phase]||j.ai_phase);
   if(j.total>0&&!['waiting_ai','cancelling'].includes(j.status))parts.push(j.completed+' of '+j.total+' completed');
-  return parts.filter(Boolean).join(' · ');
+  return parts.filter(Boolean).join('; ');
 }
 function jobMessage(j){
   if(j.status==='ready')setMsg('Import ready: '+j.name+'. '+j.count+' transactions saved.','ok');
@@ -60,7 +60,7 @@ function renderJob(j){
   const box=node('div','job');box.dataset.id=j.id;
   const head=node('div','job-head');head.append(node('span','job-name',j.name),node('span','job-status '+j.status,j.status.replace('_',' ')));box.append(head);
   const active=ACTIVE.includes(j.status);
-  box.append(node('p','job-stage',active?jobStatusText(j):(j.status==='ready'?j.count+' transactions saved · ':'')+duration(j.elapsed_seconds)+' elapsed'));
+  box.append(node('p','job-stage',active?jobStatusText(j):(j.status==='ready'?j.count+' transactions saved, ':'')+duration(j.elapsed_seconds)+' elapsed'));
   if(active&&j.status!=='cancelling'){
     const bar=node('div','job-progress');bar.setAttribute('role','progressbar');bar.setAttribute('aria-label',jobStatusText(j));
     const fill=node('span');
@@ -86,12 +86,15 @@ function renderJobs(){
   el.jobs.hidden=jobs.size===0;
   const active=[...jobs.values()].filter(j=>ACTIVE.includes(j.status));
   const finished=[...jobs.values()].filter(j=>!ACTIVE.includes(j.status));
+  // Keep a running or just-failed upload beside its feedback, not below the report.
+  const anchor=active.length||jobs.get(messageJob)?.status==='failed'?el.msg:$('dashboard');
+  if(anchor.nextElementSibling!==el.jobs)anchor.after(el.jobs);
   const children=active.map(renderJob);
   if(finished.length){
     const archive=node('details','import-history');archive.open=archiveOpen;
     archive.addEventListener('toggle',()=>{archiveOpen=archive.open});
     const visible=finished.filter(j=>!j.dismissed),failed=visible.filter(j=>j.status==='failed').length;
-    archive.append(node('summary','','Import history ('+visible.length+(failed?' · '+failed+' failed':'')+')'));
+    archive.append(node('summary','','Import history ('+visible.length+(failed?', '+failed+' failed':'')+')'));
     const dismissed=finished.filter(j=>j.dismissed).length;
     if(dismissed){
       const label=node('label','show-dismissed'),check=document.createElement('input');check.type='checkbox';check.checked=showDismissed;

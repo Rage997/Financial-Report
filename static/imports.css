@@ -1,46 +1,40 @@
-/* Upload-first onboarding + import jobs — static/imports.css */
-.onboarding h2{font-size:20px;margin:0 0 10px;letter-spacing:-.4px}
-.onboarding>p{color:var(--muted);max-width:820px;margin:8px 0}
-.fmt-list{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
-.fmt{background:#edf2f9;border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.welcome-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
-#pickFile{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;padding:10px 16px}
-#pickFile:hover{color:#fff;border-color:var(--blue);opacity:.92}
-#continueBtn{background:#fff;max-width:100%;overflow-wrap:anywhere}
-.saved-list{display:flex;flex-direction:column;gap:6px;margin:12px 0;max-height:240px;overflow:auto}
-.saved-list[hidden]{display:none}
-.saved-list button{text-align:left;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:#fff;overflow-wrap:anywhere}
-.saved-list button:hover{border-color:var(--blue);color:var(--blue)}
-.import-hint{min-height:20px;font-size:12px;color:var(--muted);margin:8px 0 0}
-.import-hint.err{color:var(--red)}
-.import-hint.ok{color:var(--green)}
-.demo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-.demo-row[hidden]{display:none}
-.demo-row p{margin:0;font-size:12px;color:var(--muted)}
-.job{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
-.job-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.job-name{font-weight:600;overflow-wrap:anywhere}
-.job-status{font-size:11px;padding:2px 9px;border-radius:20px;background:#edf2f9;color:var(--muted);text-transform:capitalize;white-space:nowrap}
-.job-status.ready{background:#e2f3ee;color:var(--green)}
-.job-status.failed{background:#fbe9ec;color:var(--red)}
-.job-status.queued,.job-status.normalizing,.job-status.categorizing,.job-status.waiting_ai{background:#e8f0fe;color:var(--blue)}
-.job-stage{font-size:12px;color:var(--muted);margin:6px 0 0}
-.job-progress{height:6px;background:#edf1f5;border-radius:4px;overflow:hidden;margin-top:8px}
-.job-progress span{display:block;height:100%;background:var(--blue);border-radius:4px;transition:width .4s}
-.job-error{font-size:12px;color:var(--red);margin:8px 0 0;overflow-wrap:anywhere}
-.job-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.job-actions button,.job-actions a{font-size:12px;padding:6px 10px;text-decoration:none}
-.job-actions a{border:1px solid var(--line);border-radius:7px;color:var(--blue)}
-.job-actions a:hover{border-color:var(--blue)}
-#jobList summary{cursor:pointer;padding:8px 0;font-weight:600}
-#jobList details[open] summary{margin-bottom:8px}
-.history-list{max-height:420px;overflow:auto;overscroll-behavior:contain}
-.show-dismissed{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:0 0 12px}
-.job-actions button[data-action=delete]{color:var(--red)}
-.job-progress.indeterminate span{width:30%;animation:import-progress 1.5s ease-in-out infinite}
-@keyframes import-progress{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
-@media(prefers-reduced-motion:reduce){.job-progress.indeterminate span{animation:none;width:100%;opacity:.45}}
-.notice-warn{border-left:3px solid #e49c39;padding:6px 12px;color:var(--muted);font-size:12px;margin:8px 0 0;background:#fdf8f0;border-radius:0 6px 6px 0;overflow-wrap:anywhere}
-@media(max-width:600px){
-.job-actions{gap:6px}
-}
+/* Hallmark · shape: app screen · theme: Console · redesign: full · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: H, one import action and plain saved rows */
+.onboarding { max-width: 960px; margin: var(--space-xl) auto; padding: var(--space-xl) 0; border-top: 0; }
+.onboarding h2 { font-size: var(--text-3xl); margin-bottom: var(--space-lg); }
+.onboarding > p { color: var(--muted); max-width: 65ch; margin: var(--space-sm) 0; }
+.fmt-list { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin: var(--space-lg) 0; }
+.fmt { background: var(--color-paper-3); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-xs); font-size: var(--text-xs); }
+.welcome-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; margin: var(--space-lg) 0; }
+#continueBtn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.saved-list { display: flex; flex-direction: column; gap: var(--space-xs); margin: var(--space-md) 0; max-height: 240px; overflow: auto; }
+.saved-list button { text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.import-hint { min-height: 1lh; font-size: var(--text-sm); color: var(--muted); margin: var(--space-xs) 0; }
+.import-hint:empty { display: none; }
+.import-hint.err, .job-error { color: var(--red); }
+.import-hint.ok { color: var(--green); }
+.demo-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--line); }
+.demo-row p { margin: 0; font-size: var(--text-sm); color: var(--muted); max-width: 45ch; }
+#importJobs { padding-block: var(--space-md); }
+.job { padding: var(--space-md) 0; border-top: 1px solid var(--line); }
+.job-head { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+.job-name { font-weight: 600; overflow-wrap: anywhere; }
+.job-status { font-size: var(--text-xs); padding: var(--space-2xs) var(--space-xs); border-radius: var(--radius-pill); background: var(--color-paper-3); color: var(--muted); text-transform: capitalize; white-space: nowrap; }
+.job-status.ready { background: var(--color-ok-soft); color: var(--green); }
+.job-status.failed { background: var(--color-bad-soft); color: var(--red); }
+.job-status.queued, .job-status.normalizing, .job-status.categorizing, .job-status.waiting_ai { background: var(--color-cool-soft); color: var(--blue); }
+.job-stage { font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-xs); }
+.job-progress { height: 6px; background: var(--color-paper-3); border-radius: var(--radius-pill); overflow: hidden; margin-top: var(--space-xs); }
+.job-progress span { display: block; height: 100%; background: var(--blue); border-radius: var(--radius-pill); }
+.job-error { font-size: var(--text-sm); margin-top: var(--space-xs); overflow-wrap: anywhere; }
+.job-actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; margin-top: var(--space-sm); }
+.job-actions a { text-decoration: none; display: inline-flex; align-items: center; }
+#jobList summary { cursor: pointer; padding: var(--space-xs) 0; font-size: var(--text-sm); font-weight: 500; }
+#jobList details[open] summary { margin-bottom: var(--space-xs); }
+.history-list { max-height: 420px; overflow: auto; overscroll-behavior: contain; }
+.show-dismissed { display: flex; align-items: center; gap: var(--space-xs); font-size: var(--text-sm); color: var(--muted); margin-bottom: var(--space-sm); }
+.job-actions button[data-action=delete] { color: var(--red); }
+.job-progress.indeterminate span { width: 30%; animation: import-progress 1.5s var(--ease-out) infinite; }
+@keyframes import-progress { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .job-progress.indeterminate span { animation: none; width: 100%; opacity: .45; } }
+.notice-warn { padding: var(--space-sm); color: var(--ink); font-size: var(--text-sm); margin-top: var(--space-xs); background: var(--color-accent-soft); border-radius: var(--radius-pill); overflow-wrap: anywhere; }
